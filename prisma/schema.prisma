@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Shop {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  services      Service[]
+  professionals Professional[]
+  clients       Client[]
+  units         Unit[]
+  appointments  Appointment[]
+  shopHours     ShopHour[]
+}
+
+model User {
+  id             String    @id @default(uuid())
+  shopId         String
+  name           String
+  email          String    @unique
+  passwordHash   String
+  role           Role      @default(leader)
+  professionalId String?   @unique
+  resetToken     String?
+  resetTokenExp  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  shop         Shop          @relation(fields: [shopId], references: [id])
+  professional Professional? @relation(fields: [professionalId], references: [id])
+}
+
+enum Role {
+  admin
+  leader
+  professional
+}
+
+model ShopHour {
+  id     String  @id @default(uuid())
+  shopId String
+  day    String
+  start  String?
+  end    String?
+
+  shop Shop @relation(fields: [shopId], references: [id])
+
+  @@unique([shopId, day])
+}
+
+model Service {
+  id          String      @id @default(uuid())
+  shopId      String
+  name        String
+  duration    Int
+  price       Int
+  description String?
+  icon        String?
+  image       String?
+  type        ServiceType @default(service)
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  shop         Shop          @relation(fields: [shopId], references: [id])
+  appointments Appointment[]
+}
+
+enum ServiceType {
+  service
+  addon
+}
+
+model Professional {
+  id          String   @id @default(uuid())
+  shopId      String
+  unitId      String?
+  name        String
+  avatar      String?
+  specialties String[]
+  phone       String?
+  email       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop         Shop          @relation(fields: [shopId], references: [id])
+  unit         Unit?         @relation(fields: [unitId], references: [id])
+  workingHours WorkingHour[]
+  appointments Appointment[]
+  user         User?
+}
+
+model WorkingHour {
+  id             String  @id @default(uuid())
+  professionalId String
+  day            String
+  start          String?
+  end            String?
+  lunchStart     String?
+  lunchEnd       String?
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@unique([professionalId, day])
+}
+
+model Client {
+  id         String    @id @default(uuid())
+  shopId     String
+  name       String?
+  phone      String
+  email      String?
+  notes      String?
+  birthday   String?
+  totalSpent Int       @default(0)
+  lastVisit  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  shop         Shop          @relation(fields: [shopId], references: [id])
+  appointments Appointment[]
+
+  @@unique([shopId, phone])
+}
+
+model Appointment {
+  id             String            @id @default(uuid())
+  shopId         String
+  clientId       String
+  serviceId      String
+  professionalId String
+  date           String
+  time           String
+  duration       Int
+  price          Int
+  status         AppointmentStatus @default(confirmed)
+  cancelReason   String?
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  shop         Shop         @relation(fields: [shopId], references: [id])
+  client       Client       @relation(fields: [clientId], references: [id])
+  service      Service      @relation(fields: [serviceId], references: [id])
+  professional Professional @relation(fields: [professionalId], references: [id])
+}
+
+enum AppointmentStatus {
+  confirmed
+  cancelled
+  completed
+  noshow
+}
+
+model Unit {
+  id        String   @id @default(uuid())
+  shopId    String
+  name      String
+  address   String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shop          Shop           @relation(fields: [shopId], references: [id])
+  professionals Professional[]
+}
