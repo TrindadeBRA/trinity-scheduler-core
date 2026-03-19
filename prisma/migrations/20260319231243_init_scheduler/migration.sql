@@ -1,0 +1,201 @@
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('admin', 'leader', 'professional');
+
+-- CreateEnum
+CREATE TYPE "ServiceType" AS ENUM ('service', 'addon');
+
+-- CreateEnum
+CREATE TYPE "AppointmentStatus" AS ENUM ('confirmed', 'cancelled', 'completed', 'noshow');
+
+-- CreateTable
+CREATE TABLE "Shop" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "phone" TEXT,
+    "email" TEXT,
+    "address" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Shop_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "shopId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "role" "Role" NOT NULL DEFAULT 'leader',
+    "professionalId" TEXT,
+    "resetToken" TEXT,
+    "resetTokenExp" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ShopHour" (
+    "id" TEXT NOT NULL,
+    "shopId" TEXT NOT NULL,
+    "day" TEXT NOT NULL,
+    "start" TEXT,
+    "end" TEXT,
+
+    CONSTRAINT "ShopHour_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Service" (
+    "id" TEXT NOT NULL,
+    "shopId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "duration" INTEGER NOT NULL,
+    "price" INTEGER NOT NULL,
+    "description" TEXT,
+    "icon" TEXT,
+    "image" TEXT,
+    "type" "ServiceType" NOT NULL DEFAULT 'service',
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Service_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Professional" (
+    "id" TEXT NOT NULL,
+    "shopId" TEXT NOT NULL,
+    "unitId" TEXT,
+    "name" TEXT NOT NULL,
+    "avatar" TEXT,
+    "specialties" TEXT[],
+    "phone" TEXT,
+    "email" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Professional_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WorkingHour" (
+    "id" TEXT NOT NULL,
+    "professionalId" TEXT NOT NULL,
+    "day" TEXT NOT NULL,
+    "start" TEXT,
+    "end" TEXT,
+    "lunchStart" TEXT,
+    "lunchEnd" TEXT,
+
+    CONSTRAINT "WorkingHour_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Client" (
+    "id" TEXT NOT NULL,
+    "shopId" TEXT NOT NULL,
+    "name" TEXT,
+    "phone" TEXT NOT NULL,
+    "email" TEXT,
+    "notes" TEXT,
+    "birthday" TEXT,
+    "totalSpent" INTEGER NOT NULL DEFAULT 0,
+    "lastVisit" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Client_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Appointment" (
+    "id" TEXT NOT NULL,
+    "shopId" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "serviceId" TEXT NOT NULL,
+    "professionalId" TEXT NOT NULL,
+    "date" TEXT NOT NULL,
+    "time" TEXT NOT NULL,
+    "duration" INTEGER NOT NULL,
+    "price" INTEGER NOT NULL,
+    "status" "AppointmentStatus" NOT NULL DEFAULT 'confirmed',
+    "cancelReason" TEXT,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Appointment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Unit" (
+    "id" TEXT NOT NULL,
+    "shopId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "address" TEXT,
+    "phone" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Unit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_professionalId_key" ON "User"("professionalId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ShopHour_shopId_day_key" ON "ShopHour"("shopId", "day");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WorkingHour_professionalId_day_key" ON "WorkingHour"("professionalId", "day");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Client_shopId_phone_key" ON "Client"("shopId", "phone");
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ShopHour" ADD CONSTRAINT "ShopHour_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Service" ADD CONSTRAINT "Service_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Professional" ADD CONSTRAINT "Professional_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Professional" ADD CONSTRAINT "Professional_unitId_fkey" FOREIGN KEY ("unitId") REFERENCES "Unit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WorkingHour" ADD CONSTRAINT "WorkingHour_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Client" ADD CONSTRAINT "Client_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Unit" ADD CONSTRAINT "Unit_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
