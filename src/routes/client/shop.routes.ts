@@ -10,12 +10,19 @@ const router = Router();
  *   get:
  *     tags: [Client Shop]
  *     summary: Obter informações públicas do estabelecimento
+ *     description: Retorna o nome do estabelecimento. Se unitId for informado, retorna o nome da unidade.
  *     parameters:
  *       - in: header
  *         name: X-Shop-Id
  *         required: true
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: unitId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Se informado, retorna o nome da unidade em vez do estabelecimento
  *     responses:
  *       200:
  *         description: Informações do estabelecimento
@@ -39,6 +46,16 @@ router.get('/info', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não resolvido');
+
+    const { unitId } = req.query;
+
+    if (unitId) {
+      const unit = await prisma.unit.findFirst({
+        where: { id: unitId as string, shopId },
+        select: { name: true },
+      });
+      if (unit) return res.json(unit);
+    }
 
     const shop = await prisma.shop.findUnique({
       where: { id: shopId },

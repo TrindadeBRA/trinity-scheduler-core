@@ -162,6 +162,7 @@ const options: swaggerJsdoc.Options = {
           properties: {
             id: { type: 'string', format: 'uuid' },
             shopId: { type: 'string', format: 'uuid' },
+            unitId: { type: 'string', format: 'uuid', nullable: true, description: 'ID da unidade (opcional)' },
             clientId: { type: 'string', format: 'uuid' },
             serviceId: { type: 'string', format: 'uuid' },
             serviceName: { type: 'string' },
@@ -188,6 +189,7 @@ const options: swaggerJsdoc.Options = {
             date: { type: 'string', example: '2024-12-25' },
             time: { type: 'string', example: '09:00' },
             notes: { type: 'string' },
+            unitId: { type: 'string', format: 'uuid', nullable: true, description: 'ID da unidade (opcional)' },
           },
         },
         Unit: {

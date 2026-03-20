@@ -114,7 +114,8 @@ export async function getAvailableSlots(
   shopId: string,
   professionalId: string | null,
   date: string,
-  serviceDuration = 30
+  serviceDuration = 30,
+  unitId: string | null = null
 ): Promise<Slot[]> {
   const dayName = getDayName(date);
 
@@ -151,8 +152,16 @@ export async function getAvailableSlots(
   }
 
   // Sem professionalId: unir disponibilidade de todos os profissionais
+  const profWhere: Record<string, unknown> = { shopId, active: true };
+  if (unitId) {
+    profWhere.OR = [
+      { unitId },
+      { professionalUnits: { some: { unitId } } },
+    ];
+  }
+
   const professionals = await prisma.professional.findMany({
-    where: { shopId, active: true },
+    where: profWhere,
     select: { id: true },
   });
 
@@ -170,7 +179,8 @@ export async function getDisabledDates(
   shopId: string,
   professionalId: string | null,
   startDate: string,
-  endDate: string
+  endDate: string,
+  unitId: string | null = null
 ): Promise<string[]> {
   const disabled: string[] = [];
   const start = new Date(startDate + 'T12:00:00');
@@ -179,7 +189,7 @@ export async function getDisabledDates(
   const current = new Date(start);
   while (current <= end) {
     const dateStr = current.toISOString().split('T')[0];
-    const slots = await getAvailableSlots(shopId, professionalId, dateStr);
+    const slots = await getAvailableSlots(shopId, professionalId, dateStr, 30, unitId);
     const hasAvailable = slots.some((s) => s.available);
     if (!hasAvailable) {
       disabled.push(dateStr);

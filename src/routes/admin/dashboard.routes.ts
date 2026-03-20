@@ -22,6 +22,12 @@ const router = Router();
  *           type: string
  *           example: '2024-12-25'
  *         description: Data no formato YYYY-MM-DD
+ *       - in: query
+ *         name: unitId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Filtrar por unidade (opcional)
  *     responses:
  *       200:
  *         description: Estatísticas do dia
@@ -43,12 +49,13 @@ const router = Router();
 router.get('/dashboard/stats', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
-    const { date } = req.query;
+    const { date, unitId } = req.query;
 
     if (!date) throw new AppError(400, 'VALIDATION_ERROR', 'Query param date é obrigatório');
 
     const where: Record<string, unknown> = { date };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (unitId) where.unitId = unitId;
 
     const appointments = await prisma.appointment.findMany({
       where,
@@ -99,6 +106,13 @@ router.get('/dashboard/stats', authorize('leader', 'admin'), async (req: Request
  *     description: Retorna o faturamento agrupado por dia dos últimos 7 dias. Valores em centavos.
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: unitId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Filtrar por unidade (opcional)
  *     responses:
  *       200:
  *         description: Faturamento semanal por dia
@@ -116,6 +130,7 @@ router.get('/dashboard/stats', authorize('leader', 'admin'), async (req: Request
 router.get('/dashboard/weekly-revenue', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
+    const { unitId } = req.query;
 
     // Semana atual: Segunda a Domingo
     const now = new Date();
@@ -138,6 +153,7 @@ router.get('/dashboard/weekly-revenue', authorize('leader', 'admin'), async (req
       status: { in: ['confirmed', 'completed'] },
     };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (unitId) where.unitId = unitId;
 
     const appointments = await prisma.appointment.findMany({
       where,
@@ -185,6 +201,13 @@ router.get('/dashboard/weekly-revenue', authorize('leader', 'admin'), async (req
  *     description: Retorna o valor de agendamentos cancelados agrupado por dia da semana atual. Valores em centavos. Mesmo formato do weekly-revenue.
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: unitId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Filtrar por unidade (opcional)
  *     responses:
  *       200:
  *         description: Cancelamentos semanais por dia
@@ -202,6 +225,7 @@ router.get('/dashboard/weekly-revenue', authorize('leader', 'admin'), async (req
 router.get('/dashboard/weekly-cancelled', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
+    const { unitId } = req.query;
 
     const now = new Date();
     const jsDay = now.getDay();
@@ -223,6 +247,7 @@ router.get('/dashboard/weekly-cancelled', authorize('leader', 'admin'), async (r
       status: 'cancelled',
     };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (unitId) where.unitId = unitId;
 
     const appointments = await prisma.appointment.findMany({
       where,

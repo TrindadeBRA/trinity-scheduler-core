@@ -35,6 +35,12 @@ const router = Router();
  *         schema:
  *           type: integer
  *         description: Duração do serviço em minutos (padrão 30)
+ *       - in: query
+ *         name: unitId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Filtrar disponibilidade pelos profissionais da unidade (opcional)
  *     responses:
  *       200:
  *         description: Lista de slots com disponibilidade
@@ -56,7 +62,7 @@ router.get('/slots', async (req: Request, res: Response, next: NextFunction) => 
     const shopId = req.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não resolvido');
 
-    const { date, professionalId, serviceDuration } = req.query;
+    const { date, professionalId, serviceDuration, unitId } = req.query;
 
     if (!date) throw new AppError(400, 'VALIDATION_ERROR', 'Query param date é obrigatório');
 
@@ -64,7 +70,8 @@ router.get('/slots', async (req: Request, res: Response, next: NextFunction) => 
       shopId,
       (professionalId as string) || null,
       date as string,
-      serviceDuration ? parseInt(serviceDuration as string, 10) : 30
+      serviceDuration ? parseInt(serviceDuration as string, 10) : 30,
+      (unitId as string) || null
     );
 
     res.json(slots);
@@ -103,6 +110,12 @@ router.get('/slots', async (req: Request, res: Response, next: NextFunction) => 
  *         schema:
  *           type: string
  *           format: uuid
+ *       - in: query
+ *         name: unitId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Filtrar disponibilidade pelos profissionais da unidade (opcional)
  *     responses:
  *       200:
  *         description: Array de datas indisponíveis (YYYY-MM-DD)
@@ -125,7 +138,7 @@ router.get('/disabled-dates', async (req: Request, res: Response, next: NextFunc
     const shopId = req.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não resolvido');
 
-    const { startDate, endDate, professionalId } = req.query;
+    const { startDate, endDate, professionalId, unitId } = req.query;
 
     if (!startDate || !endDate) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Query params startDate e endDate são obrigatórios');
@@ -135,7 +148,8 @@ router.get('/disabled-dates', async (req: Request, res: Response, next: NextFunc
       shopId,
       (professionalId as string) || null,
       startDate as string,
-      endDate as string
+      endDate as string,
+      (unitId as string) || null
     );
 
     res.json(disabled);

@@ -140,6 +140,7 @@ model Client {
 model Appointment {
   id             String            @id @default(uuid())
   shopId         String
+  unitId         String?
   clientId       String
   serviceId      String
   professionalId String
@@ -154,6 +155,7 @@ model Appointment {
   updatedAt      DateTime          @updatedAt
 
   shop         Shop                @relation(fields: [shopId], references: [id])
+  unit         Unit?               @relation(fields: [unitId], references: [id])
   client       Client              @relation(fields: [clientId], references: [id])
   service      Service             @relation(fields: [serviceId], references: [id])
   professional Professional        @relation(fields: [professionalId], references: [id])
@@ -190,6 +192,7 @@ model Unit {
   shop              Shop               @relation(fields: [shopId], references: [id])
   professionals     Professional[]
   professionalUnits ProfessionalUnit[]
+  appointments      Appointment[]
 }
 
 model ProfessionalUnit {

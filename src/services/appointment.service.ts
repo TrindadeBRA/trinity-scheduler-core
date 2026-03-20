@@ -11,8 +11,9 @@ export async function createAppointment(data: {
   date: string;
   time: string;
   notes?: string;
+  unitId?: string | null;
 }) {
-  const { shopId, clientId, serviceId, professionalId, addonIds = [], date, time, notes } = data;
+  const { shopId, clientId, serviceId, professionalId, addonIds = [], date, time, notes, unitId } = data;
 
   // Busca o serviço principal
   const service = await prisma.service.findFirst({
@@ -75,6 +76,7 @@ export async function createAppointment(data: {
       price: totalPrice,
       status: 'confirmed',
       notes: notes || null,
+      unitId: unitId || null,
       addons: addons.length > 0 ? {
         create: addons.map((a) => ({
           serviceId: a.id,

@@ -55,6 +55,12 @@ const router = Router();
  *           enum: [asc, desc]
  *           default: desc
  *         description: Direção da ordenação
+ *       - in: query
+ *         name: unitId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Filtrar por unidade (opcional)
  *     responses:
  *       200:
  *         description: Lista de agendamentos
@@ -70,7 +76,7 @@ const router = Router();
 router.get('/appointments', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
-    const { date, professionalId, status, serviceId, clientId, search, startDate, endDate, sortBy = 'date', sortOrder = 'desc' } = req.query;
+    const { date, professionalId, status, serviceId, clientId, search, startDate, endDate, sortBy = 'date', sortOrder = 'desc', unitId } = req.query;
 
     // Professional só vê os próprios agendamentos
     const effectiveProfessionalId = req.user?.role === 'professional'
@@ -84,6 +90,7 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
     if (status && status !== 'all') where.status = status;
     if (serviceId && serviceId !== 'all') where.serviceId = serviceId;
     if (clientId && clientId !== 'all') where.clientId = clientId;
+    if (unitId) where.unitId = unitId;
 
     // Filtro por intervalo de datas
     if (startDate || endDate) {
@@ -233,7 +240,7 @@ router.post('/appointments', authorize('leader', 'admin'), async (req: Request, 
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
 
-    const { clientId, serviceId, professionalId, addonIds, date, time, notes } = req.body;
+    const { clientId, serviceId, professionalId, addonIds, date, time, notes, unitId } = req.body;
 
     if (!clientId || !serviceId || !date || !time) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Campos clientId, serviceId, date e time são obrigatórios');
@@ -248,6 +255,7 @@ router.post('/appointments', authorize('leader', 'admin'), async (req: Request, 
       date,
       time,
       notes,
+      unitId: unitId || null,
     });
 
     res.status(201).json(appointment);

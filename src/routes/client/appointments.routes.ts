@@ -11,7 +11,7 @@ const router = Router();
  *   post:
  *     tags: [Client Appointments]
  *     summary: Criar agendamento
- *     description: Cria um novo agendamento. Se professionalId for null, o sistema auto-atribui um profissional disponível.
+ *     description: Cria um novo agendamento. Se professionalId for null, o sistema auto-atribui um profissional disponível. unitId é opcional e associa o agendamento a uma unidade.
  *     parameters:
  *       - in: header
  *         name: X-Shop-Id
@@ -50,7 +50,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const shopId = req.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não resolvido');
 
-    const { clientId, serviceId, professionalId, addonIds, date, time, notes } = req.body;
+    const { clientId, serviceId, professionalId, addonIds, date, time, notes, unitId } = req.body;
 
     if (!clientId || !serviceId || !date || !time) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Campos clientId, serviceId, date e time são obrigatórios');
@@ -65,6 +65,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       date,
       time,
       notes,
+      unitId: unitId || null,
     });
 
     res.status(201).json(appointment);
