@@ -25,6 +25,7 @@ const options: swaggerJsdoc.Options = {
       { name: 'Admin Units', description: 'Gestão de unidades' },
       { name: 'Admin Dashboard', description: 'Métricas e relatórios' },
       { name: 'Admin Upload', description: 'Upload de imagens (presigned URL)' },
+      { name: 'Admin Revenue', description: 'Faturamento e relatórios financeiros' },
       { name: 'Client Shop', description: 'Informações públicas do estabelecimento' },
     ],
     components: {
@@ -259,6 +260,43 @@ const options: swaggerJsdoc.Options = {
             uploadUrl: { type: 'string', description: 'URL pré-assinada para PUT do arquivo' },
             publicUrl: { type: 'string', description: 'URL pública da imagem após upload' },
             key: { type: 'string', description: 'Chave do objeto no storage' },
+          },
+        },
+        RevenueSummary: {
+          type: 'object',
+          description: 'Resumo de faturamento. Valores monetários em centavos.',
+          properties: {
+            totalRevenue:     { type: 'integer', description: 'Receita total em centavos (status=completed)' },
+            averageTicket:    { type: 'integer', description: 'Ticket médio em centavos' },
+            completedCount:   { type: 'integer', description: 'Número de agendamentos concluídos' },
+            lostRevenue:      { type: 'integer', description: 'Receita perdida em centavos (status=cancelled)' },
+            dailyRevenue:     { type: 'array', items: { $ref: '#/components/schemas/DailyRevenueEntry' } },
+            serviceBreakdown: { type: 'array', items: { $ref: '#/components/schemas/ServiceRevenueEntry' } },
+            staffRanking:     { type: 'array', items: { $ref: '#/components/schemas/StaffRankingEntry' } },
+          },
+        },
+        DailyRevenueEntry: {
+          type: 'object',
+          properties: {
+            date:  { type: 'string', example: '2024-06-15', description: 'Data no formato yyyy-MM-dd' },
+            label: { type: 'string', example: '15/06', description: 'Rótulo formatado dd/MM' },
+            total: { type: 'integer', description: 'Faturamento do dia em centavos' },
+          },
+        },
+        ServiceRevenueEntry: {
+          type: 'object',
+          properties: {
+            serviceName: { type: 'string', description: 'Nome do serviço' },
+            total:       { type: 'integer', description: 'Faturamento do serviço em centavos' },
+            percentage:  { type: 'number', format: 'float', description: 'Percentual sobre totalRevenue (0-100)' },
+          },
+        },
+        StaffRankingEntry: {
+          type: 'object',
+          properties: {
+            staffId:   { type: 'string', format: 'uuid' },
+            staffName: { type: 'string' },
+            total:     { type: 'integer', description: 'Faturamento do profissional em centavos' },
           },
         },
         LoginRequest: {
