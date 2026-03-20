@@ -121,6 +121,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       include: {
         service: { select: { name: true } },
         professional: { select: { name: true } },
+        addons: true,
       },
       orderBy: [{ date: 'desc' }, { time: 'desc' }],
     });

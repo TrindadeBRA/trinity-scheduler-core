@@ -75,11 +75,20 @@ export async function createAppointment(data: {
       price: totalPrice,
       status: 'confirmed',
       notes: notes || null,
+      addons: addons.length > 0 ? {
+        create: addons.map((a) => ({
+          serviceId: a.id,
+          name: a.name,
+          duration: a.duration,
+          price: a.price,
+        })),
+      } : undefined,
     },
     include: {
       service: { select: { name: true } },
       professional: { select: { name: true } },
       client: { select: { name: true, phone: true } },
+      addons: true,
     },
   });
 

@@ -77,6 +77,7 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
         service: { select: { name: true } },
         professional: { select: { name: true } },
         client: { select: { name: true, phone: true } },
+        addons: true,
       },
       orderBy: [{ date: 'desc' }, { time: 'desc' }],
     });
@@ -136,6 +137,7 @@ router.get('/appointments/:id', authorize('leader', 'professional', 'admin'), as
         service: { select: { name: true } },
         professional: { select: { name: true } },
         client: { select: { name: true, phone: true } },
+        addons: true,
       },
     });
 
