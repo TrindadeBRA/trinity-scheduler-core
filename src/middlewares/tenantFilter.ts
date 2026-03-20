@@ -17,8 +17,8 @@ export function tenantFilter(req: Request, res: Response, next: NextFunction): v
     req.query.shopId = shopId;
   }
 
-  // Para POST/PUT/PATCH, injeta no body
-  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+  // Para POST/PUT/PATCH, injeta no body (apenas se for objeto, não array)
+  if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && !Array.isArray(req.body)) {
     req.body = { ...req.body, shopId };
   }
 
