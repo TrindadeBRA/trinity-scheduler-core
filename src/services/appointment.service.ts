@@ -116,3 +116,22 @@ export async function cancelAppointment(appointmentId: string, reason: string): 
     data: { status: 'cancelled', cancelReason: reason },
   });
 }
+
+export async function completeAppointment(appointmentId: string): Promise<void> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+  });
+
+  if (!appointment) throw new AppError(404, 'NOT_FOUND', 'Agendamento não encontrado');
+  if (appointment.status === 'completed') {
+    throw new AppError(409, 'CONFLICT', 'Agendamento já está concluído');
+  }
+  if (appointment.status === 'cancelled') {
+    throw new AppError(409, 'CONFLICT', 'Não é possível concluir um agendamento cancelado');
+  }
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { status: 'completed' },
+  });
+}
