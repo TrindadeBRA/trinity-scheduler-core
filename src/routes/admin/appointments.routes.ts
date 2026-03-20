@@ -256,7 +256,7 @@ router.put('/appointments/:id', authorize('leader', 'admin'), async (req: Reques
   try {
     const { id } = req.params;
     const shopId = req.shopId || req.user?.shopId;
-    const { status, notes, cancelReason } = req.body;
+    const { status, notes, cancelReason, date, time, professionalId } = req.body;
 
     const where: Record<string, unknown> = { id };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
@@ -270,14 +270,25 @@ router.put('/appointments/:id', authorize('leader', 'admin'), async (req: Reques
         ...(status !== undefined && { status }),
         ...(notes !== undefined && { notes }),
         ...(cancelReason !== undefined && { cancelReason }),
+        ...(date !== undefined && { date }),
+        ...(time !== undefined && { time }),
+        ...(professionalId !== undefined && { professionalId }),
       },
       include: {
         service: { select: { name: true } },
         professional: { select: { name: true } },
+        client: { select: { name: true, phone: true } },
+        addons: true,
       },
     });
 
-    res.json({ ...updated, serviceName: updated.service.name, professionalName: updated.professional.name });
+    res.json({
+      ...updated,
+      serviceName: updated.service.name,
+      professionalName: updated.professional.name,
+      clientName: updated.client.name ?? updated.client.phone,
+      clientPhone: updated.client.phone,
+    });
   } catch (err) {
     next(err);
   }
