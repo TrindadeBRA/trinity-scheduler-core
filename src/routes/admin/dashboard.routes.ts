@@ -107,14 +107,7 @@ router.get('/dashboard/stats', authorize('leader', 'admin'), async (req: Request
  *             schema:
  *               type: array
  *               items:
- *                 type: object
- *                 properties:
- *                   date:
- *                     type: string
- *                     example: '2024-12-25'
- *                   revenue:
- *                     type: integer
- *                     description: Faturamento em centavos
+ *                 $ref: '#/components/schemas/WeeklyRevenue'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:

@@ -24,6 +24,8 @@ const options: swaggerJsdoc.Options = {
       { name: 'Admin Professionals', description: 'Gestão de profissionais' },
       { name: 'Admin Units', description: 'Gestão de unidades' },
       { name: 'Admin Dashboard', description: 'Métricas e relatórios' },
+      { name: 'Admin Upload', description: 'Upload de imagens (presigned URL)' },
+      { name: 'Client Shop', description: 'Informações públicas do estabelecimento' },
     ],
     components: {
       securitySchemes: {
@@ -221,6 +223,40 @@ const options: swaggerJsdoc.Options = {
             appointmentCount: { type: 'integer' },
             topService: { type: 'string', nullable: true },
             newClients: { type: 'integer' },
+          },
+        },
+        WeeklyRevenue: {
+          type: 'object',
+          properties: {
+            date: { type: 'string', example: '2024-12-25' },
+            revenue: { type: 'integer', description: 'Faturamento em centavos' },
+          },
+        },
+        AppointmentUpdateInput: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', enum: ['confirmed', 'cancelled', 'completed', 'noshow'] },
+            notes: { type: 'string' },
+            cancelReason: { type: 'string' },
+            date: { type: 'string', example: '2024-12-25' },
+            time: { type: 'string', example: '09:00' },
+            professionalId: { type: 'string', format: 'uuid' },
+          },
+        },
+        UploadPresignRequest: {
+          type: 'object',
+          required: ['contentType', 'folder'],
+          properties: {
+            contentType: { type: 'string', enum: ['image/jpeg', 'image/png', 'image/webp', 'image/avif'], example: 'image/webp' },
+            folder: { type: 'string', enum: ['services', 'professionals', 'shop'] },
+          },
+        },
+        UploadPresignResponse: {
+          type: 'object',
+          properties: {
+            uploadUrl: { type: 'string', description: 'URL pré-assinada para PUT do arquivo' },
+            publicUrl: { type: 'string', description: 'URL pública da imagem após upload' },
+            key: { type: 'string', description: 'Chave do objeto no storage' },
           },
         },
         LoginRequest: {

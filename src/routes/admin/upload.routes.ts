@@ -21,29 +21,24 @@ const ALLOWED_FOLDERS = ['services', 'professionals', 'shop'] as const;
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required: [contentType, folder]
- *             properties:
- *               contentType:
- *                 type: string
- *                 example: image/webp
- *               folder:
- *                 type: string
- *                 enum: [services, professionals, shop]
+ *             $ref: '#/components/schemas/UploadPresignRequest'
  *     responses:
  *       200:
  *         description: URL pré-assinada gerada
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 uploadUrl:
- *                   type: string
- *                 publicUrl:
- *                   type: string
- *                 key:
- *                   type: string
+ *               $ref: '#/components/schemas/UploadPresignResponse'
+ *       400:
+ *         description: contentType ou folder inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
  */
 router.post('/upload/presign', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {

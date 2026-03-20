@@ -26,6 +26,14 @@ const router = Router();
  *               properties:
  *                 name:
  *                   type: string
+ *       400:
+ *         description: shopId não resolvido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  */
 router.get('/info', async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -229,15 +229,7 @@ router.post('/appointments', authorize('leader', 'admin'), async (req: Request, 
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               status:
- *                 type: string
- *                 enum: [confirmed, cancelled, completed, noshow]
- *               notes:
- *                 type: string
- *               cancelReason:
- *                 type: string
+ *             $ref: '#/components/schemas/AppointmentUpdateInput'
  *     responses:
  *       200:
  *         description: Agendamento atualizado

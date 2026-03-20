@@ -41,7 +41,11 @@ const router = Router();
  *                     items:
  *                       type: string
  *       400:
- *         $ref: '#/components/responses/NotFound'
+ *         description: shopId não resolvido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
