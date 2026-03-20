@@ -301,7 +301,7 @@ router.post('/appointments', authorize('leader', 'admin'), async (req: Request, 
  */
 router.put('/appointments/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
     const { status, notes, cancelReason, date, time, professionalId } = req.body;
 
@@ -368,7 +368,7 @@ router.put('/appointments/:id', authorize('leader', 'admin'), async (req: Reques
  */
 router.delete('/appointments/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };

@@ -207,7 +207,7 @@ router.post('/services', authorize('leader', 'admin'), async (req: Request, res:
  */
 router.put('/services/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
@@ -265,7 +265,7 @@ router.put('/services/:id', authorize('leader', 'admin'), async (req: Request, r
  */
 router.delete('/services/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };

@@ -229,7 +229,7 @@ router.post('/clients', authorize('leader', 'admin'), async (req: Request, res: 
  */
 router.put('/clients/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
@@ -284,7 +284,7 @@ router.put('/clients/:id', authorize('leader', 'admin'), async (req: Request, re
  */
 router.delete('/clients/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };

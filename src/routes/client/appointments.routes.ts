@@ -181,7 +181,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
  */
 router.patch('/:id/cancel', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { reason } = req.body;
 
     await cancelAppointment(id, reason || '');

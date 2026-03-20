@@ -227,7 +227,7 @@ router.post('/professionals', authorize('leader', 'admin'), async (req: Request,
  */
 router.put('/professionals/:id', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
     // Professional só pode editar o próprio registro
@@ -296,7 +296,7 @@ router.put('/professionals/:id', authorize('leader', 'professional', 'admin'), a
  */
 router.get('/professionals/:id/units', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const allocations = await prisma.professionalUnit.findMany({
       where: { professionalId: id },
       include: { unit: true },
@@ -341,7 +341,7 @@ router.get('/professionals/:id/units', authorize('leader', 'professional', 'admi
  */
 router.put('/professionals/:id/units', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { unitIds } = req.body as { unitIds: string[] };
 
     if (!Array.isArray(unitIds)) throw new AppError(400, 'VALIDATION_ERROR', 'unitIds deve ser um array');
@@ -406,7 +406,7 @@ router.put('/professionals/:id/units', authorize('leader', 'admin'), async (req:
  */
 router.delete('/professionals/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
