@@ -64,7 +64,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
       create: { shopId, phone: phone.trim() },
     });
 
-    res.json({ clientId: client.id });
+    res.json({ clientId: client.id, name: client.name });
   } catch (err) {
     next(err);
   }
@@ -131,6 +131,57 @@ router.get('/validate', async (req: Request, res: Response, next: NextFunction) 
     }
 
     res.json({ clientId: client.id, name: client.name });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @swagger
+ * /auth/name:
+ *   patch:
+ *     tags: [Client Auth]
+ *     summary: Atualizar nome do cliente
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [clientId, name]
+ *             properties:
+ *               clientId:
+ *                 type: string
+ *                 format: uuid
+ *               name:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Nome atualizado
+ *       400:
+ *         description: Campos ausentes
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+router.patch('/name', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { clientId, name } = req.body;
+
+    if (!clientId || !name?.trim()) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'clientId e name são obrigatórios');
+    }
+
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) {
+      throw new AppError(404, 'NOT_FOUND', 'Cliente não encontrado');
+    }
+
+    await prisma.client.update({
+      where: { id: clientId },
+      data: { name: name.trim() },
+    });
+
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }
