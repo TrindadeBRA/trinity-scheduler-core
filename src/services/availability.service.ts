@@ -1,11 +1,10 @@
 import { prisma } from '../utils/prisma';
+import { SHOP_TIMEZONE } from '../config/constants';
 
 export interface Slot {
   time: string;
   available: boolean;
 }
-
-const SHOP_TIMEZONE = 'America/Sao_Paulo';
 
 function getNowInTimezone(tz: string): { dateStr: string; minutes: number } {
   const now = new Date();
