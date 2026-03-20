@@ -8,13 +8,14 @@ datasource db {
 }
 
 model Shop {
-  id        String   @id @default(uuid())
-  name      String
-  phone     String?
-  email     String?
-  address   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  name          String
+  phone         String?
+  email         String?
+  address       String?
+  bookingBuffer Int      @default(0) // minutos de antecedência mínima para agendamento
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   users         User[]
   services      Service[]

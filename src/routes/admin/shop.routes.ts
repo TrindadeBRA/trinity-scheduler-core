@@ -68,7 +68,7 @@ router.put('/shop', authorize('leader', 'admin'), async (req: Request, res: Resp
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
 
-    const { name, phone, email, address } = req.body;
+    const { name, phone, email, address, bookingBuffer } = req.body;
 
     const shop = await prisma.shop.update({
       where: { id: shopId },
@@ -77,6 +77,7 @@ router.put('/shop', authorize('leader', 'admin'), async (req: Request, res: Resp
         ...(phone !== undefined && { phone }),
         ...(email !== undefined && { email }),
         ...(address !== undefined && { address }),
+        ...(bookingBuffer !== undefined && { bookingBuffer: Number(bookingBuffer) }),
       },
     });
 

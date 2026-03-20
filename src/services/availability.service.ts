@@ -148,11 +148,15 @@ export async function getAvailableSlots(
     .filter((time) => timeToMinutes(time) + serviceDuration <= shopEndMin);
 
   // Se a data é hoje, remove slots cujo horário já passou (usando timezone da loja)
+  // bookingBuffer: minutos de antecedência mínima configurados pelo estabelecimento
+  const shop = await prisma.shop.findUnique({ where: { id: shopId } }) as { bookingBuffer?: number } | null;
+  const bufferMinutes = shop?.bookingBuffer ?? 0;
+
   const nowTz = getNowInTimezone(SHOP_TIMEZONE);
   const isToday = date === nowTz.dateStr;
   let filteredSlots = allSlots;
   if (isToday) {
-    filteredSlots = allSlots.filter((time) => timeToMinutes(time) > nowTz.minutes);
+    filteredSlots = allSlots.filter((time) => timeToMinutes(time) > nowTz.minutes + bufferMinutes);
   }
 
   if (professionalId) {
