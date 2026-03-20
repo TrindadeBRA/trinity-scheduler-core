@@ -85,6 +85,8 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
       ...a,
       serviceName: a.service.name,
       professionalName: a.professional.name,
+      clientName: a.client.name ?? a.client.phone,
+      clientPhone: a.client.phone,
     }));
 
     res.json(result);
