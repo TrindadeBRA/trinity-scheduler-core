@@ -54,12 +54,12 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     });
 
     if (!user) {
-      throw new AppError(401, 'UNAUTHORIZED', 'Credenciais inválidas');
+      throw new AppError(401, 'UNAUTHORIZED', 'Email ou senha inválidos');
     }
 
     const valid = await comparePassword(password, user.passwordHash);
     if (!valid) {
-      throw new AppError(401, 'UNAUTHORIZED', 'Credenciais inválidas');
+      throw new AppError(401, 'UNAUTHORIZED', 'Email ou senha inválidos');
     }
 
     const token = signToken({
