@@ -117,12 +117,20 @@ router.get('/dashboard/weekly-revenue', authorize('leader', 'admin'), async (req
   try {
     const shopId = req.shopId || req.user?.shopId;
 
-    // Últimos 7 dias
+    // Semana atual: Segunda a Domingo
+    const now = new Date();
+    const jsDay = now.getDay(); // 0=Dom, 1=Seg, ...
+    const diffToMonday = jsDay === 0 ? -6 : 1 - jsDay;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+
     const days: string[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      days.push(d.toISOString().split('T')[0]);
+    const dayLabels: Record<string, string> = {};
+    const weekdayNames = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      days.push(iso);
+      dayLabels[iso] = weekdayNames[i];
     }
 
     const where: Record<string, unknown> = {
@@ -133,18 +141,35 @@ router.get('/dashboard/weekly-revenue', authorize('leader', 'admin'), async (req
 
     const appointments = await prisma.appointment.findMany({
       where,
-      select: { date: true, price: true },
+      include: { professional: { select: { name: true } } },
     });
 
-    const revenueByDay: Record<string, number> = {};
-    for (const day of days) {
-      revenueByDay[day] = 0;
-    }
+    // Collect unique professional names
+    const profNames = new Set<string>();
     for (const a of appointments) {
-      revenueByDay[a.date] = (revenueByDay[a.date] || 0) + a.price;
+      profNames.add(a.professional.name);
     }
 
-    const result = days.map((date) => ({ date, revenue: revenueByDay[date] }));
+    // Build revenue map: day -> profName -> total
+    const revenueMap: Record<string, Record<string, number>> = {};
+    for (const day of days) {
+      revenueMap[day] = {};
+      for (const name of profNames) {
+        revenueMap[day][name] = 0;
+      }
+    }
+    for (const a of appointments) {
+      revenueMap[a.date][a.professional.name] += a.price;
+    }
+
+    const result = days.map((date) => {
+      const entry: Record<string, string | number> = { day: dayLabels[date] };
+      for (const name of profNames) {
+        entry[name] = revenueMap[date][name];
+      }
+      return entry;
+    });
+
     res.json(result);
   } catch (err) {
     next(err);
