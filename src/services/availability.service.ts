@@ -65,18 +65,21 @@ async function getSlotsForProfessional(
     return [];
   }
 
-  const effectiveStart = timeToMinutes(workingHour.start) > timeToMinutes(shopHour.start)
-    ? workingHour.start
-    : shopHour.start;
-  const effectiveEnd = timeToMinutes(workingHour.end) < timeToMinutes(shopHour.end)
-    ? workingHour.end
-    : shopHour.end;
+  const effectiveStartMin = Math.max(timeToMinutes(workingHour.start), timeToMinutes(shopHour.start));
+  const effectiveEndMin = Math.min(timeToMinutes(workingHour.end), timeToMinutes(shopHour.end));
 
-  if (timeToMinutes(effectiveStart) >= timeToMinutes(effectiveEnd)) {
+  if (effectiveStartMin >= effectiveEndMin) {
     return [];
   }
 
-  let slots = generateSlots(effectiveStart, effectiveEnd);
+  // Gera slots alinhados com o horário da loja para garantir correspondência
+  let slots = generateSlots(shopHour.start, shopHour.end);
+
+  // Filtra apenas slots dentro do horário efetivo do profissional
+  slots = slots.filter((s) => {
+    const t = timeToMinutes(s);
+    return t >= effectiveStartMin && t + serviceDuration <= effectiveEndMin;
+  });
 
   // Remove horário de almoço
   if (workingHour.lunchStart && workingHour.lunchEnd) {
@@ -84,7 +87,9 @@ async function getSlotsForProfessional(
     const lunchEnd = timeToMinutes(workingHour.lunchEnd);
     slots = slots.filter((s) => {
       const t = timeToMinutes(s);
-      return !(t >= lunchStart && t < lunchEnd);
+      const slotEnd = t + serviceDuration;
+      // Remove se o slot começa durante o almoço OU se o serviço invade o almoço
+      return !(t < lunchEnd && slotEnd > lunchStart);
     });
   }
 
@@ -121,7 +126,9 @@ export async function getAvailableSlots(
     return [];
   }
 
-  const allSlots = generateSlots(shopHour.start, shopHour.end);
+  const shopEndMin = timeToMinutes(shopHour.end);
+  const allSlots = generateSlots(shopHour.start, shopHour.end)
+    .filter((time) => timeToMinutes(time) + serviceDuration <= shopEndMin);
 
   if (professionalId) {
     const availableSlots = await getSlotsForProfessional(

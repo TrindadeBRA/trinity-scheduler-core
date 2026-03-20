@@ -148,12 +148,41 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
         },
       });
 
+      // Cria horários de funcionamento padrão (seg-sáb 09:00-18:00)
+      const defaultDays = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+      await Promise.all([
+        ...defaultDays.map((day) =>
+          tx.shopHour.create({ data: { shopId: newShop.id, day, start: '09:00', end: '18:00' } })
+        ),
+        tx.shopHour.create({ data: { shopId: newShop.id, day: 'Domingo', start: null, end: null } }),
+      ]);
+
+      // Cria a primeira unidade automaticamente com os dados do shop
+      const firstUnit = await tx.unit.create({
+        data: {
+          shopId: newShop.id,
+          name: newShop.name,
+          address: newShop.address,
+          phone: newShop.phone,
+        },
+      });
+
       const newProfessional = await tx.professional.create({
         data: {
           shopId: newShop.id,
+          unitId: firstUnit.id,
           name: professional.name,
           avatar: professional.avatar || null,
           specialties: professional.specialties || [],
+          workingHours: {
+            create: defaultDays.map((day) => ({
+              day,
+              start: '09:00',
+              end: '18:00',
+              lunchStart: '12:00',
+              lunchEnd: '13:00',
+            })),
+          },
         },
       });
 
