@@ -5,6 +5,22 @@ export interface Slot {
   available: boolean;
 }
 
+const SHOP_TIMEZONE = 'America/Sao_Paulo';
+
+function getNowInTimezone(tz: string): { dateStr: string; minutes: number } {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(now);
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '0';
+  const dateStr = `${get('year')}-${get('month')}-${get('day')}`;
+  const minutes = parseInt(get('hour'), 10) * 60 + parseInt(get('minute'), 10);
+  return { dateStr, minutes };
+}
+
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
@@ -131,14 +147,12 @@ export async function getAvailableSlots(
   const allSlots = generateSlots(shopHour.start, shopHour.end)
     .filter((time) => timeToMinutes(time) + serviceDuration <= shopEndMin);
 
-  // Se a data é hoje, remove slots cujo horário já passou
-  const todayStr = new Date().toISOString().split('T')[0];
-  const isToday = date === todayStr;
+  // Se a data é hoje, remove slots cujo horário já passou (usando timezone da loja)
+  const nowTz = getNowInTimezone(SHOP_TIMEZONE);
+  const isToday = date === nowTz.dateStr;
   let filteredSlots = allSlots;
   if (isToday) {
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    filteredSlots = allSlots.filter((time) => timeToMinutes(time) > nowMinutes);
+    filteredSlots = allSlots.filter((time) => timeToMinutes(time) > nowTz.minutes);
   }
 
   if (professionalId) {
