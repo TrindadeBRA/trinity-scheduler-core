@@ -56,7 +56,7 @@ const router = Router();
 router.get('/appointments', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
-    const { date, professionalId, status, serviceId, clientId } = req.query;
+    const { date, professionalId, status, serviceId, clientId, search, startDate, endDate } = req.query;
 
     // Professional só vê os próprios agendamentos
     const effectiveProfessionalId = req.user?.role === 'professional'
@@ -67,9 +67,26 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
     if (date) where.date = date;
     if (effectiveProfessionalId) where.professionalId = effectiveProfessionalId;
-    if (status) where.status = status;
-    if (serviceId) where.serviceId = serviceId;
-    if (clientId) where.clientId = clientId;
+    if (status && status !== 'all') where.status = status;
+    if (serviceId && serviceId !== 'all') where.serviceId = serviceId;
+    if (clientId && clientId !== 'all') where.clientId = clientId;
+
+    // Filtro por intervalo de datas
+    if (startDate || endDate) {
+      const dateFilter: Record<string, string> = {};
+      if (startDate) dateFilter.gte = startDate as string;
+      if (endDate) dateFilter.lte = endDate as string;
+      where.date = dateFilter;
+    }
+
+    // Busca textual por nome de cliente, serviço ou profissional
+    if (search) {
+      where.OR = [
+        { client: { name: { contains: search as string, mode: 'insensitive' } } },
+        { service: { name: { contains: search as string, mode: 'insensitive' } } },
+        { professional: { name: { contains: search as string, mode: 'insensitive' } } },
+      ];
+    }
 
     const appointments = await prisma.appointment.findMany({
       where,

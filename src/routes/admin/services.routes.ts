@@ -28,8 +28,18 @@ const router = Router();
 router.get('/services', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
+    const { search, type } = req.query;
+
     const where: Record<string, unknown> = {};
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search as string, mode: 'insensitive' } },
+        { description: { contains: search as string, mode: 'insensitive' } },
+      ];
+    }
+    if (type && type !== 'all') where.type = type;
 
     const services = await prisma.service.findMany({ where, orderBy: { name: 'asc' } });
     res.json(services);
