@@ -96,11 +96,12 @@ model Professional {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  shop         Shop          @relation(fields: [shopId], references: [id])
-  unit         Unit?         @relation(fields: [unitId], references: [id])
-  workingHours WorkingHour[]
-  appointments Appointment[]
-  user         User?
+  shop              Shop               @relation(fields: [shopId], references: [id])
+  unit              Unit?              @relation(fields: [unitId], references: [id])
+  workingHours      WorkingHour[]
+  appointments      Appointment[]
+  user              User?
+  professionalUnits ProfessionalUnit[]
 }
 
 model WorkingHour {
@@ -186,6 +187,19 @@ model Unit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  shop          Shop           @relation(fields: [shopId], references: [id])
-  professionals Professional[]
+  shop              Shop               @relation(fields: [shopId], references: [id])
+  professionals     Professional[]
+  professionalUnits ProfessionalUnit[]
+}
+
+model ProfessionalUnit {
+  id             String   @id @default(uuid())
+  professionalId String
+  unitId         String
+  createdAt      DateTime @default(now())
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  unit         Unit         @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([professionalId, unitId])
 }

@@ -39,11 +39,16 @@ router.get('/professionals', authorize('leader', 'professional', 'admin'), async
 
     const where: Record<string, unknown> = {};
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
-    if (unitId) where.unitId = unitId;
+    if (unitId) {
+      where.OR = [
+        { unitId: unitId },
+        { professionalUnits: { some: { unitId: unitId as string } } },
+      ];
+    }
 
     const professionals = await prisma.professional.findMany({
       where,
-      include: { workingHours: true },
+      include: { workingHours: true, professionalUnits: { include: { unit: true } } },
       orderBy: { name: 'asc' },
     });
 
@@ -90,7 +95,7 @@ router.get('/professionals/:id', authorize('leader', 'professional', 'admin'), a
 
     const professional = await prisma.professional.findFirst({
       where,
-      include: { workingHours: true },
+      include: { workingHours: true, professionalUnits: { include: { unit: true } } },
     });
 
     if (!professional) throw new AppError(404, 'NOT_FOUND', 'Profissional não encontrado');
@@ -157,7 +162,7 @@ router.post('/professionals', authorize('leader', 'admin'), async (req: Request,
           },
         }),
       },
-      include: { workingHours: true },
+      include: { workingHours: true, professionalUnits: { include: { unit: true } } },
     });
 
     res.status(201).json(professional);
@@ -243,10 +248,114 @@ router.put('/professionals/:id', authorize('leader', 'professional', 'admin'), a
           },
         }),
       },
-      include: { workingHours: true },
+      include: { workingHours: true, professionalUnits: { include: { unit: true } } },
     });
 
     res.json(professional);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @swagger
+ * /admin/professionals/{id}/units:
+ *   get:
+ *     tags: [Admin Professionals]
+ *     summary: Listar unidades alocadas ao profissional
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Lista de unidades alocadas
+ */
+router.get('/professionals/:id/units', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const allocations = await prisma.professionalUnit.findMany({
+      where: { professionalId: id },
+      include: { unit: true },
+      orderBy: { unit: { name: 'asc' } },
+    });
+    res.json(allocations);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @swagger
+ * /admin/professionals/{id}/units:
+ *   put:
+ *     tags: [Admin Professionals]
+ *     summary: Atualizar alocação de unidades do profissional
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               unitIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *     responses:
+ *       200:
+ *         description: Alocações atualizadas
+ */
+router.put('/professionals/:id/units', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { unitIds } = req.body as { unitIds: string[] };
+
+    if (!Array.isArray(unitIds)) throw new AppError(400, 'VALIDATION_ERROR', 'unitIds deve ser um array');
+
+    const shopId = req.shopId || req.user?.shopId;
+    const where: Record<string, unknown> = { id };
+    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+
+    const existing = await prisma.professional.findFirst({ where });
+    if (!existing) throw new AppError(404, 'NOT_FOUND', 'Profissional não encontrado');
+
+    // Replace all allocations
+    await prisma.$transaction([
+      prisma.professionalUnit.deleteMany({ where: { professionalId: id } }),
+      ...unitIds.map(unitId =>
+        prisma.professionalUnit.create({ data: { professionalId: id, unitId } })
+      ),
+    ]);
+
+    // Also update the legacy unitId to the first unit (backward compat)
+    await prisma.professional.update({
+      where: { id },
+      data: { unitId: unitIds[0] || null },
+    });
+
+    const allocations = await prisma.professionalUnit.findMany({
+      where: { professionalId: id },
+      include: { unit: true },
+      orderBy: { unit: { name: 'asc' } },
+    });
+
+    res.json(allocations);
   } catch (err) {
     next(err);
   }
