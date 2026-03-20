@@ -21,6 +21,7 @@ import adminServicesRouter from './admin/services.routes';
 import adminProfessionalsRouter from './admin/professionals.routes';
 import adminUnitsRouter from './admin/units.routes';
 import adminDashboardRouter from './admin/dashboard.routes';
+import adminUploadRouter from './admin/upload.routes';
 
 export function mountRoutes(app: Express): void {
   // ─── Client routes (shopResolver required) ───────────────────────────────
@@ -43,4 +44,5 @@ export function mountRoutes(app: Express): void {
   app.use('/admin', authMiddleware, tenantFilter, adminProfessionalsRouter);
   app.use('/admin', authMiddleware, tenantFilter, adminUnitsRouter);
   app.use('/admin', authMiddleware, tenantFilter, adminDashboardRouter);
+  app.use('/admin', authMiddleware, tenantFilter, adminUploadRouter);
 }
