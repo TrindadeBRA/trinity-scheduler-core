@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../utils/prisma';
 import { authorize } from '../../middlewares/authorize';
 import { AppError } from '../../utils/errors';
+import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
 
 const router = Router();
 
@@ -10,16 +11,31 @@ const router = Router();
  * /admin/professionals:
  *   get:
  *     tags: [Admin Professionals]
- *     summary: Listar profissionais
+ *     summary: Listar profissionais (paginado)
  *     security:
  *       - bearerAuth: []
  *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Busca por nome, email ou telefone
  *       - in: query
  *         name: unitId
  *         schema:
  *           type: string
  *           format: uuid
  *         description: Filtrar por unidade
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           default: 25
  *       - in: query
  *         name: sortBy
  *         schema:
@@ -36,20 +52,29 @@ const router = Router();
  *         description: Direção da ordenação
  *     responses:
  *       200:
- *         description: Lista de profissionais
+ *         description: Lista paginada de profissionais
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Professional'
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Professional'
+ *                 total:
+ *                   type: integer
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/professionals', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
-    const { search, unitId, sortBy = 'name', sortOrder = 'asc' } = req.query;
+    const { search, unitId, page = '1', pageSize = '25', sortBy = 'name', sortOrder = 'asc' } = req.query;
+
+    const pageNum = parseInt(page as string, 10);
+    const perPageNum = parseInt(pageSize as string, 10);
+    const skip = (pageNum - 1) * perPageNum;
 
     const where: Record<string, unknown> = {};
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
@@ -74,13 +99,18 @@ router.get('/professionals', authorize('leader', 'professional', 'admin'), async
     const field = allowedSortFields.includes(sortBy as string) ? (sortBy as string) : 'name';
     const direction = sortOrder === 'asc' ? 'asc' : 'desc';
 
-    const professionals = await prisma.professional.findMany({
-      where,
-      include: { workingHours: true, professionalUnits: { include: { unit: true } } },
-      orderBy: { [field]: direction },
-    });
+    const [data, total] = await prisma.$transaction([
+      prisma.professional.findMany({
+        where,
+        skip,
+        take: perPageNum,
+        include: { workingHours: true, professionalUnits: { include: { unit: true } } },
+        orderBy: { [field]: direction },
+      }),
+      prisma.professional.count({ where }),
+    ]);
 
-    res.json(professionals);
+    res.json({ data, total });
   } catch (err) {
     next(err);
   }

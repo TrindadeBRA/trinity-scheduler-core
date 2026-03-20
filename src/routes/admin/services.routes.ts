@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../utils/prisma';
 import { authorize } from '../../middlewares/authorize';
 import { AppError } from '../../utils/errors';
+import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
 
 const router = Router();
 
@@ -10,7 +11,7 @@ const router = Router();
  * /admin/services:
  *   get:
  *     tags: [Admin Services]
- *     summary: Listar serviços e adicionais
+ *     summary: Listar serviços e adicionais (paginado)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -25,6 +26,16 @@ const router = Router();
  *           type: string
  *           enum: [service, addon, all]
  *         description: Filtrar por tipo
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           default: 25
  *       - in: query
  *         name: sortBy
  *         schema:
@@ -41,20 +52,29 @@ const router = Router();
  *         description: Direção da ordenação
  *     responses:
  *       200:
- *         description: Lista de serviços e adicionais
+ *         description: Lista paginada de serviços e adicionais
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Service'
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Service'
+ *                 total:
+ *                   type: integer
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/services', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
-    const { search, type, sortBy = 'name', sortOrder = 'asc' } = req.query;
+    const { search, type, page = '1', pageSize = '25', sortBy = 'name', sortOrder = 'asc' } = req.query;
+
+    const pageNum = parseInt(page as string, 10);
+    const perPageNum = parseInt(pageSize as string, 10);
+    const skip = (pageNum - 1) * perPageNum;
 
     const where: Record<string, unknown> = {};
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
@@ -71,8 +91,12 @@ router.get('/services', authorize('leader', 'professional', 'admin'), async (req
     const field = allowedSortFields.includes(sortBy as string) ? (sortBy as string) : 'name';
     const direction = sortOrder === 'asc' ? 'asc' : 'desc';
 
-    const services = await prisma.service.findMany({ where, orderBy: { [field]: direction } });
-    res.json(services);
+    const [data, total] = await prisma.$transaction([
+      prisma.service.findMany({ where, skip, take: perPageNum, orderBy: { [field]: direction } }),
+      prisma.service.count({ where }),
+    ]);
+
+    res.json({ data, total });
   } catch (err) {
     next(err);
   }

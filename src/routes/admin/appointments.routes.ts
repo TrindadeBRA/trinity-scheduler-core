@@ -3,6 +3,7 @@ import { prisma } from '../../utils/prisma';
 import { authorize } from '../../middlewares/authorize';
 import { createAppointment, cancelAppointment } from '../../services/appointment.service';
 import { AppError } from '../../utils/errors';
+import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
 
 const router = Router();
 
@@ -11,7 +12,7 @@ const router = Router();
  * /admin/appointments:
  *   get:
  *     tags: [Admin Appointments]
- *     summary: Listar agendamentos
+ *     summary: Listar agendamentos (paginado)
  *     description: Lista agendamentos com filtros. Professional vê apenas os próprios.
  *     security:
  *       - bearerAuth: []
@@ -42,6 +43,16 @@ const router = Router();
  *           type: string
  *           format: uuid
  *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           default: 25
+ *       - in: query
  *         name: sortBy
  *         schema:
  *           type: string
@@ -63,20 +74,29 @@ const router = Router();
  *         description: Filtrar por unidade (opcional)
  *     responses:
  *       200:
- *         description: Lista de agendamentos
+ *         description: Lista paginada de agendamentos
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Appointment'
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Appointment'
+ *                 total:
+ *                   type: integer
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/appointments', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
-    const { date, professionalId, status, serviceId, clientId, search, startDate, endDate, sortBy = 'date', sortOrder = 'desc', unitId } = req.query;
+    const { date, professionalId, status, serviceId, clientId, search, startDate, endDate, page = '1', pageSize = '25', sortBy = 'date', sortOrder = 'desc', unitId } = req.query;
+
+    const pageNum = parseInt(page as string, 10);
+    const perPageNum = parseInt(pageSize as string, 10);
+    const skip = (pageNum - 1) * perPageNum;
 
     // Professional só vê os próprios agendamentos
     const effectiveProfessionalId = req.user?.role === 'professional'
@@ -125,18 +145,23 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
       orderBy = [{ date: 'desc' }, { time: 'desc' }];
     }
 
-    const appointments = await prisma.appointment.findMany({
-      where,
-      include: {
-        service: { select: { name: true } },
-        professional: { select: { name: true } },
-        client: { select: { name: true, phone: true } },
-        addons: true,
-      },
-      orderBy,
-    });
+    const [appointments, total] = await prisma.$transaction([
+      prisma.appointment.findMany({
+        where,
+        skip,
+        take: perPageNum,
+        include: {
+          service: { select: { name: true } },
+          professional: { select: { name: true } },
+          client: { select: { name: true, phone: true } },
+          addons: true,
+        },
+        orderBy,
+      }),
+      prisma.appointment.count({ where }),
+    ]);
 
-    const result = appointments.map((a) => ({
+    const data = appointments.map((a) => ({
       ...a,
       serviceName: a.service.name,
       professionalName: a.professional.name,
@@ -144,7 +169,7 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
       clientPhone: a.client.phone,
     }));
 
-    res.json(result);
+    res.json({ data, total });
   } catch (err) {
     next(err);
   }
