@@ -41,6 +41,20 @@ const router = Router();
  *         schema:
  *           type: string
  *           format: uuid
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [date, time, clientName, serviceName, professionalName, status, price, duration]
+ *           default: date
+ *         description: Campo para ordenação
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Direção da ordenação
  *     responses:
  *       200:
  *         description: Lista de agendamentos
@@ -56,7 +70,7 @@ const router = Router();
 router.get('/appointments', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
-    const { date, professionalId, status, serviceId, clientId, search, startDate, endDate } = req.query;
+    const { date, professionalId, status, serviceId, clientId, search, startDate, endDate, sortBy = 'date', sortOrder = 'desc' } = req.query;
 
     // Professional só vê os próprios agendamentos
     const effectiveProfessionalId = req.user?.role === 'professional'
@@ -88,6 +102,22 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
       ];
     }
 
+    const direction = sortOrder === 'asc' ? 'asc' as const : 'desc' as const;
+    const relationSortMap: Record<string, object[]> = {
+      clientName: [{ client: { name: direction } }],
+      serviceName: [{ service: { name: direction } }],
+      professionalName: [{ professional: { name: direction } }],
+    };
+    const directFields = ['date', 'time', 'status', 'price', 'duration'];
+    let orderBy: object[];
+    if (relationSortMap[sortBy as string]) {
+      orderBy = relationSortMap[sortBy as string];
+    } else if (directFields.includes(sortBy as string)) {
+      orderBy = [{ [sortBy as string]: direction }];
+    } else {
+      orderBy = [{ date: 'desc' }, { time: 'desc' }];
+    }
+
     const appointments = await prisma.appointment.findMany({
       where,
       include: {
@@ -96,7 +126,7 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
         client: { select: { name: true, phone: true } },
         addons: true,
       },
-      orderBy: [{ date: 'desc' }, { time: 'desc' }],
+      orderBy,
     });
 
     const result = appointments.map((a) => ({

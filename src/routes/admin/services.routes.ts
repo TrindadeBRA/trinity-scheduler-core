@@ -13,6 +13,32 @@ const router = Router();
  *     summary: Listar serviços e adicionais
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Busca por nome ou descrição
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [service, addon, all]
+ *         description: Filtrar por tipo
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [name, duration, price, type, active]
+ *           default: name
+ *         description: Campo para ordenação
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *         description: Direção da ordenação
  *     responses:
  *       200:
  *         description: Lista de serviços e adicionais
@@ -28,7 +54,7 @@ const router = Router();
 router.get('/services', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
-    const { search, type } = req.query;
+    const { search, type, sortBy = 'name', sortOrder = 'asc' } = req.query;
 
     const where: Record<string, unknown> = {};
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
@@ -41,7 +67,11 @@ router.get('/services', authorize('leader', 'professional', 'admin'), async (req
     }
     if (type && type !== 'all') where.type = type;
 
-    const services = await prisma.service.findMany({ where, orderBy: { name: 'asc' } });
+    const allowedSortFields = ['name', 'duration', 'price', 'type', 'active'];
+    const field = allowedSortFields.includes(sortBy as string) ? (sortBy as string) : 'name';
+    const direction = sortOrder === 'asc' ? 'asc' : 'desc';
+
+    const services = await prisma.service.findMany({ where, orderBy: { [field]: direction } });
     res.json(services);
   } catch (err) {
     next(err);

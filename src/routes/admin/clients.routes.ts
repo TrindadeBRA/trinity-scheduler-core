@@ -29,6 +29,20 @@ const router = Router();
  *         schema:
  *           type: integer
  *           default: 20
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [name, phone, email, totalSpent, lastVisit, createdAt]
+ *           default: createdAt
+ *         description: Campo para ordenação
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Direção da ordenação
  *     responses:
  *       200:
  *         description: Lista paginada de clientes
@@ -51,7 +65,7 @@ const router = Router();
 router.get('/clients', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
-    const { search, page = '1', perPage = '20' } = req.query;
+    const { search, page = '1', perPage = '20', sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
 
     const pageNum = parseInt(page as string, 10);
     const perPageNum = parseInt(perPage as string, 10);
@@ -67,8 +81,12 @@ router.get('/clients', authorize('leader', 'admin'), async (req: Request, res: R
       ];
     }
 
+    const allowedSortFields = ['name', 'phone', 'email', 'totalSpent', 'lastVisit', 'createdAt'];
+    const field = allowedSortFields.includes(sortBy as string) ? (sortBy as string) : 'createdAt';
+    const direction = sortOrder === 'asc' ? 'asc' : 'desc';
+
     const [data, total] = await prisma.$transaction([
-      prisma.client.findMany({ where, skip, take: perPageNum, orderBy: { createdAt: 'desc' } }),
+      prisma.client.findMany({ where, skip, take: perPageNum, orderBy: { [field]: direction } }),
       prisma.client.count({ where }),
     ]);
 
