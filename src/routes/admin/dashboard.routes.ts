@@ -176,4 +176,77 @@ router.get('/dashboard/weekly-revenue', authorize('leader', 'admin'), async (req
   }
 });
 
+/**
+ * @swagger
+ * /admin/dashboard/weekly-cancelled:
+ *   get:
+ *     tags: [Admin Dashboard]
+ *     summary: Valor cancelado dos últimos 7 dias
+ *     description: Retorna o valor de agendamentos cancelados agrupado por dia da semana atual. Valores em centavos. Mesmo formato do weekly-revenue.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Cancelamentos semanais por dia
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/WeeklyRevenue'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+router.get('/dashboard/weekly-cancelled', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const shopId = req.shopId || req.user?.shopId;
+
+    const now = new Date();
+    const jsDay = now.getDay();
+    const diffToMonday = jsDay === 0 ? -6 : 1 - jsDay;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+
+    const days: string[] = [];
+    const dayLabels: Record<string, string> = {};
+    const weekdayNames = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      days.push(iso);
+      dayLabels[iso] = weekdayNames[i];
+    }
+
+    const where: Record<string, unknown> = {
+      date: { in: days },
+      status: 'cancelled',
+    };
+    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+
+    const appointments = await prisma.appointment.findMany({
+      where,
+      include: { professional: { select: { name: true } } },
+    });
+
+    // Soma total por dia (sem separar por profissional)
+    const cancelledMap: Record<string, number> = {};
+    for (const day of days) {
+      cancelledMap[day] = 0;
+    }
+    for (const a of appointments) {
+      cancelledMap[a.date] += a.price;
+    }
+
+    const result = days.map((date) => ({
+      day: dayLabels[date],
+      Cancelados: cancelledMap[date],
+    }));
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

@@ -130,6 +130,16 @@ export async function getAvailableSlots(
   const allSlots = generateSlots(shopHour.start, shopHour.end)
     .filter((time) => timeToMinutes(time) + serviceDuration <= shopEndMin);
 
+  // Se a data é hoje, remove slots cujo horário já passou
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isToday = date === todayStr;
+  let filteredSlots = allSlots;
+  if (isToday) {
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    filteredSlots = allSlots.filter((time) => timeToMinutes(time) > nowMinutes);
+  }
+
   if (professionalId) {
     const availableSlots = await getSlotsForProfessional(
       shopId, professionalId, date,
@@ -137,7 +147,7 @@ export async function getAvailableSlots(
       serviceDuration
     );
     const availableSet = new Set(availableSlots);
-    return allSlots.map((time) => ({ time, available: availableSet.has(time) }));
+    return filteredSlots.map((time) => ({ time, available: availableSet.has(time) }));
   }
 
   // Sem professionalId: unir disponibilidade de todos os profissionais
@@ -153,7 +163,7 @@ export async function getAvailableSlots(
   );
 
   const unionAvailable = new Set(availableByProfessional.flat());
-  return allSlots.map((time) => ({ time, available: unionAvailable.has(time) }));
+  return filteredSlots.map((time) => ({ time, available: unionAvailable.has(time) }));
 }
 
 export async function getDisabledDates(
