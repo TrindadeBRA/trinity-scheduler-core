@@ -49,7 +49,7 @@ const router = Router();
 router.get('/professionals', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
-    const { unitId, sortBy = 'name', sortOrder = 'asc' } = req.query;
+    const { search, unitId, sortBy = 'name', sortOrder = 'asc' } = req.query;
 
     const where: Record<string, unknown> = {};
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
@@ -58,6 +58,16 @@ router.get('/professionals', authorize('leader', 'professional', 'admin'), async
         { unitId: unitId },
         { professionalUnits: { some: { unitId: unitId as string } } },
       ];
+    }
+    if (search) {
+      const term = { contains: search as string, mode: 'insensitive' };
+      const searchConditions = [{ name: term }, { email: term }, { phone: term }];
+      if (where.OR) {
+        where.AND = [{ OR: where.OR as unknown[] }, { OR: searchConditions }];
+        delete where.OR;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     const allowedSortFields = ['name', 'email', 'phone', 'active'];
