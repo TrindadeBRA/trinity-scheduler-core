@@ -42,7 +42,7 @@ function generateSlots(start: string, end: string, interval = 30): string[] {
   const slots: string[] = [];
   let current = timeToMinutes(start);
   const endMin = timeToMinutes(end);
-  while (current < endMin) {
+  while (current <= endMin) {
     slots.push(minutesToTime(current));
     current += interval;
   }
@@ -94,7 +94,7 @@ async function getSlotsForProfessional(
   // Filtra apenas slots dentro do horário efetivo do profissional
   slots = slots.filter((s) => {
     const t = timeToMinutes(s);
-    return t >= effectiveStartMin && t + serviceDuration <= effectiveEndMin;
+    return t >= effectiveStartMin && t <= effectiveEndMin;
   });
 
   // Remove horário de almoço
@@ -144,8 +144,7 @@ export async function getAvailableSlots(
   }
 
   const shopEndMin = timeToMinutes(shopHour.end);
-  const allSlots = generateSlots(shopHour.start, shopHour.end)
-    .filter((time) => timeToMinutes(time) + serviceDuration <= shopEndMin);
+  const allSlots = generateSlots(shopHour.start, shopHour.end);
 
   // Se a data é hoje, remove slots cujo horário já passou (usando timezone da loja)
   // bookingBuffer: minutos de antecedência mínima configurados pelo estabelecimento
