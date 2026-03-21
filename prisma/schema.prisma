@@ -85,7 +85,7 @@ enum ServiceType {
 }
 
 model Professional {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   shopId      String
   unitId      String?
   name        String
@@ -93,9 +93,10 @@ model Professional {
   specialties String[]
   phone       String?
   email       String?
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  active      Boolean   @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   shop              Shop               @relation(fields: [shopId], references: [id])
   unit              Unit?              @relation(fields: [unitId], references: [id])
@@ -185,6 +186,7 @@ model Unit {
   id        String   @id @default(uuid())
   shopId    String
   name      String
+  slug      String   @unique
   address   String?
   phone     String?
   createdAt DateTime @default(now())

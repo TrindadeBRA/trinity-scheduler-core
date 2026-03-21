@@ -59,7 +59,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não resolvido');
 
     const { unitId } = req.query;
-    const where: Record<string, unknown> = { shopId, active: true };
+    const where: Record<string, unknown> = { shopId, active: true, deletedAt: null };
 
     if (unitId) {
       where.OR = [

@@ -11,6 +11,7 @@ import clientProfessionalsRouter from './client/professionals.routes';
 import clientAvailabilityRouter from './client/availability.routes';
 import clientAppointmentsRouter from './client/appointments.routes';
 import clientShopRouter from './client/shop.routes';
+import clientUnitsRouter from './client/units.routes';
 
 // Admin routes
 import adminAuthRouter from './admin/auth.routes';
@@ -25,6 +26,9 @@ import adminRevenueRouter from './admin/revenue.routes';
 import adminUploadRouter from './admin/upload.routes';
 
 export function mountRoutes(app: Express): void {
+  // ─── Client routes (public - no shopResolver, no auth) ───────────────────
+  app.use('/client/units', clientUnitsRouter);
+
   // ─── Client routes (shopResolver required) ───────────────────────────────
   app.use('/auth', shopResolver, clientAuthRouter);
   app.use('/services', shopResolver, clientServicesRouter);

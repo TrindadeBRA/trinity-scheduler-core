@@ -168,7 +168,7 @@ export async function getAvailableSlots(
   }
 
   // Sem professionalId: unir disponibilidade de todos os profissionais
-  const profWhere: Record<string, unknown> = { shopId, active: true };
+  const profWhere: Record<string, unknown> = { shopId, active: true, deletedAt: null };
   if (unitId) {
     profWhere.OR = [
       { unitId },

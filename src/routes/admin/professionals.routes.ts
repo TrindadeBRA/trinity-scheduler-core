@@ -76,7 +76,7 @@ router.get('/professionals', authorize('leader', 'professional', 'admin'), async
     const perPageNum = parseInt(pageSize as string, 10);
     const skip = (pageNum - 1) * perPageNum;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { deletedAt: null };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
     if (unitId) {
       where.OR = [
@@ -148,7 +148,7 @@ router.get('/professionals/:id', authorize('leader', 'professional', 'admin'), a
     const { id } = req.params;
     const shopId = req.shopId || req.user?.shopId;
 
-    const where: Record<string, unknown> = { id };
+    const where: Record<string, unknown> = { id, deletedAt: null };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
 
     const professional = await prisma.professional.findFirst({
@@ -275,7 +275,7 @@ router.put('/professionals/:id', authorize('leader', 'professional', 'admin'), a
       throw new AppError(403, 'FORBIDDEN', 'Profissional só pode editar o próprio registro');
     }
 
-    const where: Record<string, unknown> = { id };
+    const where: Record<string, unknown> = { id, deletedAt: null };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
 
     const existing = await prisma.professional.findFirst({ where });
@@ -387,7 +387,7 @@ router.put('/professionals/:id/units', authorize('leader', 'admin'), async (req:
     if (!Array.isArray(unitIds)) throw new AppError(400, 'VALIDATION_ERROR', 'unitIds deve ser um array');
 
     const shopId = req.shopId || req.user?.shopId;
-    const where: Record<string, unknown> = { id };
+    const where: Record<string, unknown> = { id, deletedAt: null };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
 
     const existing = await prisma.professional.findFirst({ where });
@@ -424,7 +424,7 @@ router.put('/professionals/:id/units', authorize('leader', 'admin'), async (req:
  * /admin/professionals/{id}:
  *   delete:
  *     tags: [Admin Professionals]
- *     summary: Excluir profissional
+ *     summary: Excluir profissional (soft delete)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -449,13 +449,18 @@ router.delete('/professionals/:id', authorize('leader', 'admin'), async (req: Re
     const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
-    const where: Record<string, unknown> = { id };
+    const where: Record<string, unknown> = { id, deletedAt: null };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
 
     const existing = await prisma.professional.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Profissional não encontrado');
 
-    await prisma.professional.delete({ where: { id } });
+    // Soft delete: marca deletedAt ao invés de remover do banco
+    await prisma.professional.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+
     res.status(204).send();
   } catch (err) {
     next(err);

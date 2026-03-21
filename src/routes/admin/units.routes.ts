@@ -3,6 +3,7 @@ import { prisma } from '../../utils/prisma';
 import { authorize } from '../../middlewares/authorize';
 import { AppError } from '../../utils/errors';
 import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
+import { sanitizeSlug, validateSlug, generateSlug } from '../../utils/slug';
 
 const router = Router();
 
@@ -153,7 +154,19 @@ router.get('/units/:id', authorize('leader', 'professional', 'admin'), async (re
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/UnitInput'
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *               slug:
+ *                 type: string
+ *                 description: Slug opcional para URL (será gerado automaticamente se não fornecido)
+ *               address:
+ *                 type: string
+ *               phone:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Unidade criada
@@ -161,21 +174,48 @@ router.get('/units/:id', authorize('leader', 'professional', 'admin'), async (re
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Unit'
+ *       400:
+ *         description: Erro de validação
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
  *         $ref: '#/components/responses/Forbidden'
+ *       409:
+ *         description: Slug já está em uso
  */
 router.post('/units', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
 
-    const { name, address, phone } = req.body;
+    const { name, address, phone, slug } = req.body;
     if (!name) throw new AppError(400, 'VALIDATION_ERROR', 'Campo name é obrigatório');
 
+    // Sanitiza e valida slug se fornecido, ou gera automaticamente
+    let finalSlug = slug ? sanitizeSlug(slug) : generateSlug(name);
+    
+    const validation = validateSlug(finalSlug);
+    if (!validation.valid) {
+      throw new AppError(400, 'VALIDATION_ERROR', validation.error || 'Slug inválido');
+    }
+    
+    // Verifica unicidade (case-insensitive)
+    const existing = await prisma.unit.findFirst({
+      where: { slug: { equals: finalSlug, mode: 'insensitive' } }
+    });
+    
+    if (existing) {
+      throw new AppError(409, 'CONFLICT', 'Slug já está em uso');
+    }
+
     const unit = await prisma.unit.create({
-      data: { shopId, name, address: address || null, phone: phone || null },
+      data: { 
+        shopId, 
+        name, 
+        slug: finalSlug,
+        address: address || null, 
+        phone: phone || null 
+      },
     });
 
     res.status(201).json(unit);
@@ -204,7 +244,17 @@ router.post('/units', authorize('leader', 'admin'), async (req: Request, res: Re
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/UnitInput'
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               slug:
+ *                 type: string
+ *                 description: Slug opcional para URL
+ *               address:
+ *                 type: string
+ *               phone:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Unidade atualizada
@@ -212,12 +262,16 @@ router.post('/units', authorize('leader', 'admin'), async (req: Request, res: Re
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Unit'
+ *       400:
+ *         description: Erro de validação
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  *       404:
  *         $ref: '#/components/responses/NotFound'
+ *       409:
+ *         description: Slug já está em uso
  */
 router.put('/units/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -230,12 +284,35 @@ router.put('/units/:id', authorize('leader', 'admin'), async (req: Request, res:
     const existing = await prisma.unit.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Unidade não encontrada');
 
-    const { name, address, phone } = req.body;
+    const { name, address, phone, slug } = req.body;
+
+    // Se slug foi fornecido, sanitiza e valida
+    if (slug !== undefined) {
+      const sanitized = sanitizeSlug(slug);
+      const validation = validateSlug(sanitized);
+      
+      if (!validation.valid) {
+        throw new AppError(400, 'VALIDATION_ERROR', validation.error || 'Slug inválido');
+      }
+      
+      // Verifica unicidade excluindo a própria unidade (case-insensitive)
+      const conflicting = await prisma.unit.findFirst({
+        where: {
+          slug: { equals: sanitized, mode: 'insensitive' },
+          id: { not: id }
+        }
+      });
+      
+      if (conflicting) {
+        throw new AppError(409, 'CONFLICT', 'Slug já está em uso');
+      }
+    }
 
     const unit = await prisma.unit.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
+        ...(slug !== undefined && { slug: sanitizeSlug(slug) }),
         ...(address !== undefined && { address }),
         ...(phone !== undefined && { phone }),
       },

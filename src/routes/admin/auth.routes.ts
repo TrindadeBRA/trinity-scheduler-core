@@ -4,6 +4,7 @@ import { prisma } from '../../utils/prisma';
 import { hashPassword, comparePassword } from '../../utils/password';
 import { signToken } from '../../utils/jwt';
 import { AppError } from '../../utils/errors';
+import { generateSlug, sanitizeSlug, validateSlug } from '../../utils/slug';
 
 const router = Router();
 
@@ -158,10 +159,36 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       ]);
 
       // Cria a primeira unidade automaticamente com os dados do shop
+      // Gera ou valida slug
+      let unitSlug = shop.slug ? sanitizeSlug(shop.slug) : generateSlug(newShop.name);
+      
+      // Valida o slug
+      const slugValidation = validateSlug(unitSlug);
+      if (!slugValidation.valid) {
+        throw new AppError(400, 'VALIDATION_ERROR', slugValidation.error || 'Slug inválido');
+      }
+      
+      // Verifica unicidade do slug
+      const existingSlug = await tx.unit.findFirst({
+        where: { slug: { equals: unitSlug, mode: 'insensitive' } }
+      });
+      
+      if (existingSlug) {
+        // Se houver conflito, adiciona sufixo numérico
+        let counter = 2;
+        let alternativeSlug = `${unitSlug}-${counter}`;
+        while (await tx.unit.findFirst({ where: { slug: { equals: alternativeSlug, mode: 'insensitive' } } })) {
+          counter++;
+          alternativeSlug = `${unitSlug}-${counter}`;
+        }
+        unitSlug = alternativeSlug;
+      }
+      
       const firstUnit = await tx.unit.create({
         data: {
           shopId: newShop.id,
           name: newShop.name,
+          slug: unitSlug,
           address: newShop.address,
           phone: newShop.phone,
         },

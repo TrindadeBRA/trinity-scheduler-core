@@ -41,7 +41,7 @@ export async function createAppointment(data: {
 
     // Encontra o primeiro profissional disponível nesse slot
     const professionals = await prisma.professional.findMany({
-      where: { shopId, active: true },
+      where: { shopId, active: true, deletedAt: null },
       select: { id: true },
     });
 
