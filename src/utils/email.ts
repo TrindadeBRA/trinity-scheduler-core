@@ -1,14 +1,6 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 
-console.log('[EMAIL] Inicializando transporter SMTP:', {
-  host: env.SMTP_HOST,
-  port: env.SMTP_PORT,
-  user: env.SMTP_USER,
-  pass: env.SMTP_PASS ? `${env.SMTP_PASS.slice(0, 4)}****` : '(vazio)',
-  from: env.SMTP_FROM_EMAIL,
-});
-
 const transporter = nodemailer.createTransport({
   host: env.SMTP_HOST,
   port: env.SMTP_PORT,
@@ -18,13 +10,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('[EMAIL] Falha na verificação SMTP:', error);
-  } else {
-    console.log('[EMAIL] SMTP verificado com sucesso:', success);
-  }
-});
+
 
 export interface EmailOptions {
   to: string;
@@ -42,23 +28,8 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
     text: options.text,
   };
 
-  console.log('[EMAIL] Tentando enviar email:', {
-    from: mailOptions.from,
-    to: mailOptions.to,
-    subject: mailOptions.subject,
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-  });
-
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('[EMAIL] Email enviado com sucesso:', {
-      to: options.to,
-      messageId: info.messageId,
-      response: info.response,
-      accepted: info.accepted,
-      rejected: info.rejected,
-    });
   } catch (error) {
     console.error('[EMAIL] Erro ao enviar email:', {
       to: options.to,
@@ -83,13 +54,6 @@ export async function sendProfessionalCredentials(
   }
 ): Promise<void> {
   const loginUrl = details.loginUrl || env.ADMIN_URL || 'http://localhost:8080';
-
-  console.log('[EMAIL] Preparando email de credenciais:', {
-    to: email,
-    name: details.name,
-    shopName: details.shopName,
-    loginUrl,
-  });
 
   const html = `
     <!DOCTYPE html>
