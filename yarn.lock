@@ -2155,6 +2155,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/nodemailer@npm:^7.0.11":
+  version: 7.0.11
+  resolution: "@types/nodemailer@npm:7.0.11"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/dc6472c26600e763c38721b0691fc3014eb868d20b97eb48cfbc4fe9a7a09f66c0ccd8d647033a4be91051cc3c7bdca73c006db2f7a9e8bdd1ce65bb5ec2599c
+  languageName: node
+  linkType: hard
+
 "@types/qs@npm:*":
   version: 6.15.0
   resolution: "@types/qs@npm:6.15.0"
@@ -3888,6 +3897,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"nodemailer@npm:^8.0.3":
+  version: 8.0.3
+  resolution: "nodemailer@npm:8.0.3"
+  checksum: 10c0/57edb30171b78c71ea6e766258004cc10f30869876b2ea7b9c8aa121ca3e7832213a15c902bb94f66bbd8db7bd2aef8d2d85ad73871bdc5ce84371dc05677bb6
+  languageName: node
+  linkType: hard
+
 "nopt@npm:^5.0.0":
   version: 5.0.0
   resolution: "nopt@npm:5.0.0"
@@ -4728,6 +4744,7 @@ __metadata:
     "@types/jsonwebtoken": "npm:^9.0.7"
     "@types/node": "npm:^22.9.0"
     "@types/node-cron": "npm:^3.0.11"
+    "@types/nodemailer": "npm:^7.0.11"
     "@types/swagger-jsdoc": "npm:^6.0.4"
     "@types/swagger-ui-express": "npm:^4.1.7"
     bcrypt: "npm:^5.1.1"
@@ -4737,6 +4754,7 @@ __metadata:
     fast-check: "npm:^3.23.1"
     jsonwebtoken: "npm:^9.0.2"
     node-cron: "npm:^4.2.1"
+    nodemailer: "npm:^8.0.3"
     pg: "npm:^8.13.1"
     prisma: "npm:5.22.0"
     swagger-jsdoc: "npm:^6.2.8"
