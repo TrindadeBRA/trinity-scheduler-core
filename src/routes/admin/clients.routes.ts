@@ -62,7 +62,7 @@ const router = Router();
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.get('/clients', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/clients', authorize('leader', 'admin', 'professional'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
     const { search, page = '1', perPage = '20', sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
@@ -125,7 +125,7 @@ router.get('/clients', authorize('leader', 'admin'), async (req: Request, res: R
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.get('/clients/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/clients/:id', authorize('leader', 'admin', 'professional'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const shopId = req.shopId || req.user?.shopId;
