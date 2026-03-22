@@ -3,6 +3,9 @@ import { authMiddleware } from '../middlewares/auth';
 import { tenantFilter } from '../middlewares/tenantFilter';
 import { shopResolver } from '../middlewares/shopResolver';
 
+// Public routes
+import publicRouter from './public.routes';
+
 // Client routes
 import clientAuthRouter from './client/auth.routes';
 import clientServicesRouter from './client/services.routes';
@@ -26,6 +29,9 @@ import adminRevenueRouter from './admin/revenue.routes';
 import adminUploadRouter from './admin/upload.routes';
 
 export function mountRoutes(app: Express): void {
+  // ─── Public routes (no authentication required) ──────────────────────────
+  app.use('/public', publicRouter);
+
   // ─── Client routes (public - no shopResolver, no auth) ───────────────────
   app.use('/client/units', clientUnitsRouter);
 
