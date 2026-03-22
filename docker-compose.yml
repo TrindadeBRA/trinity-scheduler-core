@@ -12,5 +12,18 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  mcp-postgres:
+    image: mcp/postgres
+    container_name: trinity-mcp-postgres
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://trinity:trinity123@postgres:5432/trinity_scheduler
+      MCP_PORT: 3001
+    depends_on:
+      - postgres
+    command: npx -y @modelcontextprotocol/server-postgres postgresql://trinity:trinity123@postgres:5432/trinity_scheduler
+
 volumes:
   pgdata:

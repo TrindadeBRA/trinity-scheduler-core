@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../utils/prisma';
 import { authorize } from '../../middlewares/authorize';
+import { applyProfessionalFilter } from '../../utils/dataFilter';
 
 const router = Router();
 
@@ -54,24 +55,36 @@ const router = Router();
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.get('/revenue/summary', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/revenue/summary', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
     const { unitId, staffId, startDate, endDate } = req.query as Record<string, string | undefined>;
 
     const where: Record<string, unknown> = {};
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
-    if (unitId) where.unitId = unitId;
-    if (staffId) where.professionalId = staffId;
+    
+    // Apply professional filter when role is 'professional'
+    const filteredWhere = applyProfessionalFilter(where, {
+      role: req.user?.role || 'leader',
+      shopId,
+      professionalId: req.user?.professionalId
+    });
+    
+    // Apply other filters
+    if (unitId) filteredWhere.unitId = unitId;
+    
+    // staffId filter overrides professional filter if provided
+    if (staffId) filteredWhere.professionalId = staffId;
+    
     if (startDate || endDate) {
-      where.date = {
+      filteredWhere.date = {
         ...(startDate ? { gte: startDate } : {}),
         ...(endDate ? { lte: endDate } : {}),
       };
     }
 
     const appointments = await prisma.appointment.findMany({
-      where,
+      where: filteredWhere,
       include: {
         service: { select: { name: true } },
         professional: { select: { id: true, name: true } },
@@ -113,16 +126,22 @@ router.get('/revenue/summary', authorize('leader', 'admin'), async (req: Request
       .sort((a, b) => b.total - a.total);
 
     // staffRanking — groupBy professionalId, sort DESC, top 5
+    // For professionals, only include their own record
     const staffMap: Record<string, { staffName: string; total: number }> = {};
     for (const a of completed) {
       const pid = a.professional.id;
       if (!staffMap[pid]) staffMap[pid] = { staffName: a.professional.name, total: 0 };
       staffMap[pid].total += a.price;
     }
-    const staffRanking = Object.keys(staffMap)
+    let staffRanking = Object.keys(staffMap)
       .map((staffId) => ({ staffId, staffName: staffMap[staffId].staffName, total: staffMap[staffId].total }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
+    
+    // If role is professional, filter staffRanking to only include the professional
+    if (req.user?.role === 'professional' && req.user?.professionalId) {
+      staffRanking = staffRanking.filter(s => s.staffId === req.user?.professionalId);
+    }
 
     res.json({ totalRevenue, averageTicket, completedCount, lostRevenue, dailyRevenue, serviceBreakdown, staffRanking });
   } catch (err) {

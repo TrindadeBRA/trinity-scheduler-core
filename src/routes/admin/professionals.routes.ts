@@ -3,6 +3,7 @@ import { prisma } from '../../utils/prisma';
 import { authorize } from '../../middlewares/authorize';
 import { AppError } from '../../utils/errors';
 import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
+import { createProfessionalCredentials, updateProfessionalCredentials, getProfessionalUser } from '../../services/professionalCredentials.service';
 
 const router = Router();
 
@@ -78,6 +79,12 @@ router.get('/professionals', authorize('leader', 'professional', 'admin'), async
 
     const where: Record<string, unknown> = { deletedAt: null };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    
+    // Apply professional filter: professionals can only see their own record
+    if (req.user?.role === 'professional' && req.user.professionalId) {
+      where.id = req.user.professionalId;
+    }
+    
     if (unitId) {
       where.OR = [
         { unitId: unitId },
@@ -148,6 +155,11 @@ router.get('/professionals/:id', authorize('leader', 'professional', 'admin'), a
     const { id } = req.params;
     const shopId = req.shopId || req.user?.shopId;
 
+    // Professional can only access their own record
+    if (req.user?.role === 'professional' && req.user.professionalId !== id) {
+      throw new AppError(403, 'FORBIDDEN', 'Profissional só pode acessar o próprio registro');
+    }
+
     const where: Record<string, unknown> = { id, deletedAt: null };
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
 
@@ -194,7 +206,7 @@ router.post('/professionals', authorize('leader', 'admin'), async (req: Request,
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
 
-    const { name, unitId, avatar, specialties, phone, email, active, workingHours } = req.body;
+    const { name, unitId, avatar, specialties, phone, email, active, workingHours, credentials } = req.body;
 
     if (!name) throw new AppError(400, 'VALIDATION_ERROR', 'Campo name é obrigatório');
 
@@ -222,6 +234,17 @@ router.post('/professionals', authorize('leader', 'admin'), async (req: Request,
       },
       include: { workingHours: true, professionalUnits: { include: { unit: true } } },
     });
+
+    // Create user credentials if provided
+    if (credentials && credentials.email && credentials.password) {
+      await createProfessionalCredentials({
+        professionalId: professional.id,
+        shopId,
+        name: professional.name,
+        email: credentials.email,
+        password: credentials.password,
+      });
+    }
 
     res.status(201).json(professional);
   } catch (err) {
@@ -281,7 +304,7 @@ router.put('/professionals/:id', authorize('leader', 'professional', 'admin'), a
     const existing = await prisma.professional.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Profissional não encontrado');
 
-    const { name, unitId, avatar, specialties, phone, email, active, workingHours } = req.body;
+    const { name, unitId, avatar, specialties, phone, email, active, workingHours, credentials } = req.body;
 
     const professional = await prisma.professional.update({
       where: { id },
@@ -308,6 +331,29 @@ router.put('/professionals/:id', authorize('leader', 'professional', 'admin'), a
       },
       include: { workingHours: true, professionalUnits: { include: { unit: true } } },
     });
+
+    // Update or create credentials if provided
+    if (credentials && (credentials.email || credentials.password)) {
+      const existingUser = await getProfessionalUser(id);
+      
+      if (existingUser) {
+        // Update existing credentials
+        await updateProfessionalCredentials({
+          professionalId: id,
+          email: credentials.email,
+          password: credentials.password,
+        });
+      } else if (credentials.email && credentials.password) {
+        // Create new credentials (both email and password required for creation)
+        await createProfessionalCredentials({
+          professionalId: id,
+          shopId: professional.shopId,
+          name: professional.name,
+          email: credentials.email,
+          password: credentials.password,
+        });
+      }
+    }
 
     res.json(professional);
   } catch (err) {

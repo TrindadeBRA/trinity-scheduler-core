@@ -6,7 +6,57 @@ const options: swaggerJsdoc.Options = {
     info: {
       title: 'Trinity Scheduler Core API',
       version: '1.0.0',
-      description: 'API backend do Trinity Scheduler — serve o painel do cliente e o painel administrativo',
+      description: `API backend do Trinity Scheduler — serve o painel do cliente e o painel administrativo
+
+## Role-Based Access Control (RBAC)
+
+O sistema implementa controle de acesso baseado em roles (papéis) para usuários administrativos:
+
+### Roles Disponíveis
+
+- **admin**: Acesso completo a todas as funcionalidades do sistema
+- **leader**: Gerenciamento completo do estabelecimento (equipe, agendamentos, relatórios)
+- **professional**: Acesso restrito aos próprios dados (agendamentos, receita, perfil)
+
+### Comportamento por Role
+
+#### Admin
+- Acesso irrestrito a todos os endpoints administrativos
+- Visualização de dados de todos os estabelecimentos (cross-tenant)
+- Todas as operações CRUD permitidas
+
+#### Leader
+- Acesso completo aos dados do estabelecimento
+- Visualização de todos os profissionais, clientes e agendamentos
+- Criação e gerenciamento de profissionais (incluindo credenciais)
+- Todas as operações CRUD dentro do estabelecimento
+
+#### Professional
+- Acesso restrito aos próprios dados
+- Dashboard: apenas estatísticas pessoais
+- Revenue: apenas faturamento pessoal
+- Professionals: apenas visualização e edição do próprio perfil
+- Agendamentos: apenas os próprios agendamentos
+- Sem permissão para criar/excluir profissionais ou acessar dados de outros profissionais
+
+### Filtragem Automática de Dados
+
+Para usuários com role **professional**, o sistema aplica automaticamente filtros de dados:
+- Todos os endpoints de dashboard, revenue e appointments filtram por \`professionalId\`
+- O filtro é aplicado no nível de query do banco de dados (Prisma)
+- Impossível acessar dados de outros profissionais, mesmo manipulando parâmetros
+
+### Autenticação
+
+- JWT token contém: \`userId\`, \`shopId\`, \`role\`, \`professionalId\` (quando aplicável)
+- Token incluído no header: \`Authorization: Bearer <token>\`
+- Expiração: 7 dias
+
+### Respostas de Erro
+
+- **401 UNAUTHORIZED**: Token ausente, inválido ou expirado
+- **403 FORBIDDEN**: Role sem permissão para o recurso solicitado
+- Tentativas de acesso negado são registradas em logs estruturados para auditoria`,
     },
     servers: [{ url: '/', description: 'API Server' }],
     tags: [
@@ -34,6 +84,24 @@ const options: swaggerJsdoc.Options = {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
+          description: `JWT token contendo informações do usuário autenticado.
+
+**Payload do Token:**
+\`\`\`json
+{
+  "id": "user-uuid",
+  "shopId": "shop-uuid",
+  "role": "admin | leader | professional",
+  "professionalId": "professional-uuid (apenas para role=professional)"
+}
+\`\`\`
+
+**Roles e Permissões:**
+- \`admin\`: Acesso completo a todos os recursos
+- \`leader\`: Acesso completo ao estabelecimento
+- \`professional\`: Acesso restrito aos próprios dados
+
+**Nota:** Endpoints protegidos verificam automaticamente a role do usuário e aplicam filtros de dados quando necessário.`,
         },
       },
       schemas: {

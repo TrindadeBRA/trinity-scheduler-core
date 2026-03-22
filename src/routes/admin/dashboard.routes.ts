@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../utils/prisma';
 import { authorize } from '../../middlewares/authorize';
 import { AppError } from '../../utils/errors';
+import { applyProfessionalFilter } from '../../utils/dataFilter';
 
 const router = Router();
 
@@ -46,7 +47,7 @@ const router = Router();
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.get('/dashboard/stats', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/dashboard/stats', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
     const { date, unitId } = req.query;
@@ -57,8 +58,14 @@ router.get('/dashboard/stats', authorize('leader', 'admin'), async (req: Request
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
     if (unitId) where.unitId = unitId;
 
+    // Apply professional filter
+    const filteredWhere = applyProfessionalFilter(where, {
+      role: req.user?.role || 'leader',
+      professionalId: req.user?.professionalId
+    });
+
     const appointments = await prisma.appointment.findMany({
-      where,
+      where: filteredWhere,
       include: { service: { select: { name: true } } },
     });
 
@@ -84,12 +91,31 @@ router.get('/dashboard/stats', authorize('leader', 'admin'), async (req: Request
     const dateStart = new Date(date as string + 'T00:00:00.000Z');
     const dateEnd = new Date(date as string + 'T23:59:59.999Z');
 
-    const newClientsWhere: Record<string, unknown> = {
-      createdAt: { gte: dateStart, lte: dateEnd },
-    };
-    if (shopId && req.user?.role !== 'admin') newClientsWhere.shopId = shopId;
-
-    const newClients = await prisma.client.count({ where: newClientsWhere });
+    // For professionals, count only clients who made their first appointment with this professional
+    let newClients = 0;
+    if (req.user?.role === 'professional' && req.user?.professionalId) {
+      // Get unique client IDs from appointments on this date for this professional
+      const clientIds = appointments.map(a => a.clientId);
+      const uniqueClientIds = [...new Set(clientIds)];
+      
+      // Count how many of these clients had their first appointment with this professional on this date
+      for (const clientId of uniqueClientIds) {
+        const firstAppointment = await prisma.appointment.findFirst({
+          where: { clientId, professionalId: req.user.professionalId },
+          orderBy: { createdAt: 'asc' }
+        });
+        if (firstAppointment && firstAppointment.date === date) {
+          newClients++;
+        }
+      }
+    } else {
+      // For admin/leader, count all new clients in the shop
+      const newClientsWhere: Record<string, unknown> = {
+        createdAt: { gte: dateStart, lte: dateEnd },
+      };
+      if (shopId && req.user?.role !== 'admin') newClientsWhere.shopId = shopId;
+      newClients = await prisma.client.count({ where: newClientsWhere });
+    }
 
     res.json({ revenue, appointmentCount, topService, newClients });
   } catch (err) {
@@ -127,7 +153,7 @@ router.get('/dashboard/stats', authorize('leader', 'admin'), async (req: Request
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.get('/dashboard/weekly-revenue', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/dashboard/weekly-revenue', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
     const { unitId } = req.query;
@@ -155,8 +181,14 @@ router.get('/dashboard/weekly-revenue', authorize('leader', 'admin'), async (req
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
     if (unitId) where.unitId = unitId;
 
+    // Apply professional filter
+    const filteredWhere = applyProfessionalFilter(where, {
+      role: req.user?.role || 'leader',
+      professionalId: req.user?.professionalId
+    });
+
     const appointments = await prisma.appointment.findMany({
-      where,
+      where: filteredWhere,
       include: { professional: { select: { name: true } } },
     });
 
@@ -222,7 +254,7 @@ router.get('/dashboard/weekly-revenue', authorize('leader', 'admin'), async (req
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.get('/dashboard/weekly-cancelled', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.get('/dashboard/weekly-cancelled', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
     const { unitId } = req.query;
@@ -249,8 +281,14 @@ router.get('/dashboard/weekly-cancelled', authorize('leader', 'admin'), async (r
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
     if (unitId) where.unitId = unitId;
 
+    // Apply professional filter
+    const filteredWhere = applyProfessionalFilter(where, {
+      role: req.user?.role || 'leader',
+      professionalId: req.user?.professionalId
+    });
+
     const appointments = await prisma.appointment.findMany({
-      where,
+      where: filteredWhere,
       include: { professional: { select: { name: true } } },
     });
 

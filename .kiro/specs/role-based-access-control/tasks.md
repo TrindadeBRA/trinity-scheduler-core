@@ -9,7 +9,7 @@ The system implements role-based access control for three roles (admin, leader, 
 ## Tasks
 
 - [ ] 1. Backend Authorization Infrastructure
-  - [ ] 1.1 Create data filter utility for role-based query filtering
+  - [x] 1.1 Create data filter utility for role-based query filtering
     - Create `src/utils/dataFilter.ts` with `applyProfessionalFilter` function
     - Implement logic to add professionalId filter when role is 'professional'
     - Preserve existing filters (date, unitId, etc.) in the where clause
@@ -23,7 +23,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - Test edge cases (missing professionalId, null values)
     - _Requirements: 20.6_
   
-  - [ ] 1.3 Create professional credentials service
+  - [x] 1.3 Create professional credentials service
     - Create `src/services/professionalCredentials.service.ts`
     - Implement `createProfessionalCredentials` function with email validation and password hashing
     - Implement `updateProfessionalCredentials` function for updating email/password
@@ -38,7 +38,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - Test password hashing (plaintext never stored)
     - _Requirements: 20.7_
   
-  - [ ] 1.5 Create logging service for security events
+  - [x] 1.5 Create logging service for security events
     - Create `src/services/logging.service.ts`
     - Implement `logAccessDenied` function with structured JSON logging
     - Include userId, role, endpoint, method, timestamp, IP, user agent
@@ -46,7 +46,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5_
 
 - [ ] 2. Backend Dashboard Route Modifications
-  - [ ] 2.1 Update dashboard stats endpoint for professional access
+  - [x] 2.1 Update dashboard stats endpoint for professional access
     - Modify `src/routes/admin/dashboard.routes.ts` GET `/dashboard/stats`
     - Add 'professional' to authorize middleware roles
     - Apply professional filter using data filter utility when role is 'professional'
@@ -61,14 +61,14 @@ The system implements role-based access control for three roles (admin, leader, 
     - Verify returned stats only include appointments matching professionalId
     - _Requirements: 20.3_
   
-  - [ ] 2.3 Update weekly revenue endpoint for professional access
+  - [x] 2.3 Update weekly revenue endpoint for professional access
     - Modify `src/routes/admin/dashboard.routes.ts` GET `/dashboard/weekly-revenue`
     - Add 'professional' to authorize middleware roles
     - Apply professional filter when role is 'professional'
     - Ensure only professional's name appears in result for professionals
     - _Requirements: 1.1, 1.5, 4.1, 4.2, 4.3, 4.4, 4.5_
   
-  - [ ] 2.4 Update weekly cancelled endpoint for professional access
+  - [x] 2.4 Update weekly cancelled endpoint for professional access
     - Modify `src/routes/admin/dashboard.routes.ts` GET `/dashboard/weekly-cancelled`
     - Add 'professional' to authorize middleware roles
     - Apply professional filter when role is 'professional'
@@ -83,7 +83,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - _Requirements: 20.3, 20.4_
 
 - [ ] 3. Backend Revenue Route Modifications
-  - [ ] 3.1 Update revenue summary endpoint for professional access
+  - [x] 3.1 Update revenue summary endpoint for professional access
     - Modify `src/routes/admin/revenue.routes.ts` GET `/revenue/summary`
     - Add 'professional' to authorize middleware roles
     - Apply professional filter to all appointment queries
@@ -106,14 +106,14 @@ The system implements role-based access control for three roles (admin, leader, 
     - _Requirements: 20.3, 20.4_
 
 - [ ] 4. Backend Professional Route Modifications
-  - [ ] 4.1 Update professionals list endpoint for professional access
+  - [x] 4.1 Update professionals list endpoint for professional access
     - Modify `src/routes/admin/professionals.routes.ts` GET `/professionals`
     - Apply professional filter when role is 'professional' (filter by id)
     - Preserve existing filters (search, unitId, pagination)
     - Ensure pagination works correctly with single record
     - _Requirements: 1.1, 1.5, 6.1, 6.2, 6.3, 6.4, 6.5_
   
-  - [ ] 4.2 Update professional details endpoint with access control
+  - [x] 4.2 Update professional details endpoint with access control
     - Modify `src/routes/admin/professionals.routes.ts` GET `/professionals/:id`
     - Add check: if role is 'professional' and id !== professionalId, return 403
     - Return error message: "Profissional só pode acessar o próprio registro"
@@ -126,14 +126,14 @@ The system implements role-based access control for three roles (admin, leader, 
     - Test that professional cannot access other professional's details (403)
     - _Requirements: 20.3_
   
-  - [ ] 4.4 Add credential creation to professional create endpoint
+  - [x] 4.4 Add credential creation to professional create endpoint
     - Modify `src/routes/admin/professionals.routes.ts` POST `/professionals`
     - Accept optional `credentials` field in request body (email, password)
     - Call `createProfessionalCredentials` if credentials provided
     - Handle email uniqueness validation (409 CONFLICT)
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8_
   
-  - [ ] 4.5 Add credential update to professional update endpoint
+  - [x] 4.5 Add credential update to professional update endpoint
     - Modify `src/routes/admin/professionals.routes.ts` PUT `/professionals/:id`
     - Accept optional `credentials` field in request body
     - Check if User exists for professional, update or create accordingly
@@ -164,14 +164,14 @@ The system implements role-based access control for three roles (admin, leader, 
     - Test leader can update professional credentials
     - _Requirements: 20.3, 20.4, 20.5_
 
-- [ ] 5. Checkpoint - Backend Implementation Complete
+- [x] 5. Checkpoint - Backend Implementation Complete
   - Ensure all backend tests pass
   - Verify all endpoints return correct data for each role
   - Test authorization middleware blocks unauthorized access
   - Ask the user if questions arise
 
 - [ ] 6. Frontend Auth Store Enhancement
-  - [ ] 6.1 Enhance auth store with role and professionalId
+  - [x] 6.1 Enhance auth store with role and professionalId
     - Locate admin panel auth store (likely in admin panel codebase)
     - Add `role` field: `'admin' | 'leader' | 'professional' | null`
     - Add `professionalId` field: `string | null`
@@ -188,7 +188,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - _Requirements: 20.1_
 
 - [ ] 7. Frontend Route Guard Component
-  - [ ] 7.1 Create RouteGuard component for role-based routing
+  - [x] 7.1 Create RouteGuard component for role-based routing
     - Create route guard component in admin panel
     - Accept `allowedRoles` prop: array of allowed roles
     - Check if user's role is in allowedRoles
@@ -203,7 +203,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - _Requirements: 20.2_
 
 - [ ] 8. Frontend Dashboard UI Adaptation
-  - [ ] 8.1 Adapt dashboard component for professional role
+  - [x] 8.1 Adapt dashboard component for professional role
     - Locate dashboard component in admin panel
     - Hide professional filter (staffId) when role is 'professional'
     - Add indicator showing data is personal when role is 'professional'
@@ -218,7 +218,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - _Requirements: 20.4_
 
 - [ ] 9. Frontend Revenue UI Adaptation
-  - [ ] 9.1 Adapt revenue component for professional role
+  - [x] 9.1 Adapt revenue component for professional role
     - Locate revenue component in admin panel
     - Hide professional filter (staffId) when role is 'professional'
     - Add indicator showing data is personal when role is 'professional'
@@ -232,7 +232,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - _Requirements: 20.4_
 
 - [ ] 10. Frontend Professionals UI Adaptation
-  - [ ] 10.1 Adapt professionals list component for professional role
+  - [x] 10.1 Adapt professionals list component for professional role
     - Locate professionals list component in admin panel
     - Hide or disable "Add Professional" button when role is 'professional'
     - Hide or disable delete button for professional's own record
@@ -247,7 +247,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - _Requirements: 20.4_
 
 - [ ] 11. Frontend Navigation UI Adaptation
-  - [ ] 11.1 Adapt navigation menu for professional role
+  - [x] 11.1 Adapt navigation menu for professional role
     - Locate navigation component in admin panel
     - Show all menu items (Dashboard, Revenue, Agenda, Profissionais, Serviços, Clientes, Configurações) for admin and leader
     - Show only allowed items (Dashboard, Revenue, Agenda) for professional
@@ -268,14 +268,14 @@ The system implements role-based access control for three roles (admin, leader, 
     - _Requirements: 20.4_
 
 - [ ] 12. Frontend Error Handling for Authorization
-  - [ ] 12.1 Implement user-friendly error messages for 403 errors
+  - [x] 12.1 Implement user-friendly error messages for 403 errors
     - Locate error handling in admin panel API client
     - Display friendly message when API returns 403
     - Include information about required role in error message
     - Use toast, modal, or error component for display
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5_
 
-- [ ] 13. Checkpoint - Frontend Implementation Complete
+- [x] 13. Checkpoint - Frontend Implementation Complete
   - Ensure all frontend tests pass
   - Verify UI adapts correctly for each role
   - Test route guards block unauthorized navigation
@@ -304,13 +304,13 @@ The system implements role-based access control for three roles (admin, leader, 
     - Test cross-role scenarios (professional trying to access leader features)
     - _Requirements: 20.1, 20.2, 20.3, 20.4, 20.5_
   
-  - [ ] 15.2 Add logging integration to authorization middleware
+  - [x] 15.2 Add logging integration to authorization middleware
     - Integrate logging service with authorize middleware
     - Log access denied events with full context
     - Include IP and user agent from request headers
     - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5_
   
-  - [ ] 15.3 Update Swagger documentation with complete RBAC rules
+  - [x] 15.3 Update Swagger documentation with complete RBAC rules
     - Update Swagger annotations for all modified endpoints (dashboard, revenue, professionals)
     - Document role requirements for each endpoint (admin, leader, professional)
     - Document automatic data filtering applied by role (professionalId filter for professionals)
@@ -322,7 +322,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - _Requirements: 18.4, 18.5_
 
 - [ ] 16. Create RBAC Steering File
-  - [ ] 16.1 Create steering file with RBAC rules and guidelines
+  - [x] 16.1 Create steering file with RBAC rules and guidelines
     - Create `trinity-scheduler-core/.kiro/steering/rbac-rules.md`
     - Document the three roles (admin, leader, professional) and their permissions
     - Document automatic data filtering rules (professionalId filter for professionals)
@@ -335,7 +335,7 @@ The system implements role-based access control for three roles (admin, leader, 
     - Document common pitfalls and how to avoid them
     - _Requirements: All requirements (comprehensive reference)_
 
-- [ ] 17. Final Checkpoint - All Tests Pass
+- [x] 17. Final Checkpoint - All Tests Pass
   - Run all unit tests and verify they pass
   - Run all property-based tests with 100+ iterations
   - Run all integration tests and verify they pass
