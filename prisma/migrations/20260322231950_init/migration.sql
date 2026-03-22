@@ -14,6 +14,8 @@ CREATE TABLE "Shop" (
     "phone" TEXT,
     "email" TEXT,
     "address" TEXT,
+    "niche" TEXT NOT NULL DEFAULT 'barbearia',
+    "bookingBuffer" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -77,6 +79,7 @@ CREATE TABLE "Professional" (
     "phone" TEXT,
     "email" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
+    "deletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -117,6 +120,7 @@ CREATE TABLE "Client" (
 CREATE TABLE "Appointment" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
+    "unitId" TEXT,
     "clientId" TEXT NOT NULL,
     "serviceId" TEXT NOT NULL,
     "professionalId" TEXT NOT NULL,
@@ -134,16 +138,39 @@ CREATE TABLE "Appointment" (
 );
 
 -- CreateTable
+CREATE TABLE "AppointmentAddon" (
+    "id" TEXT NOT NULL,
+    "appointmentId" TEXT NOT NULL,
+    "serviceId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "duration" INTEGER NOT NULL,
+    "price" INTEGER NOT NULL,
+
+    CONSTRAINT "AppointmentAddon_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Unit" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
     "address" TEXT,
     "phone" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Unit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProfessionalUnit" (
+    "id" TEXT NOT NULL,
+    "professionalId" TEXT NOT NULL,
+    "unitId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ProfessionalUnit_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -160,6 +187,12 @@ CREATE UNIQUE INDEX "WorkingHour_professionalId_day_key" ON "WorkingHour"("profe
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Client_shopId_phone_key" ON "Client"("shopId", "phone");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Unit_slug_key" ON "Unit"("slug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProfessionalUnit_professionalId_unitId_key" ON "ProfessionalUnit"("professionalId", "unitId");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -189,6 +222,9 @@ ALTER TABLE "Client" ADD CONSTRAINT "Client_shopId_fkey" FOREIGN KEY ("shopId") 
 ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_unitId_fkey" FOREIGN KEY ("unitId") REFERENCES "Unit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -198,4 +234,13 @@ ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_serviceId_fkey" FOREIGN KE
 ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "AppointmentAddon" ADD CONSTRAINT "AppointmentAddon_appointmentId_fkey" FOREIGN KEY ("appointmentId") REFERENCES "Appointment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Unit" ADD CONSTRAINT "Unit_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProfessionalUnit" ADD CONSTRAINT "ProfessionalUnit_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProfessionalUnit" ADD CONSTRAINT "ProfessionalUnit_unitId_fkey" FOREIGN KEY ("unitId") REFERENCES "Unit"("id") ON DELETE CASCADE ON UPDATE CASCADE;

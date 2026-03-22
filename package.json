@@ -4,15 +4,11 @@
   "packageManager": "yarn@4.11.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "node scripts/pre-migrate.js && prisma generate && prisma migrate deploy && tsc",
+    "build": "prisma generate && prisma migrate deploy && tsc",
     "start": "node dist/index.js",
     "test": "vitest --run",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "migrate:slugs": "tsx scripts/migrate-unit-slugs.ts",
-    "migrate:slugs:preview": "tsx scripts/migrate-unit-slugs-dry-run.ts",
-    "verify:slugs": "tsx scripts/verify-slugs.ts",
-    "fix:migration": "node scripts/fix-failed-migration.js"
+    "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1013.0",
