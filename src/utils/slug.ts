@@ -4,6 +4,75 @@
  */
 
 /**
+ * Lista de slugs reservados que não podem ser usados
+ * Inclui subdomínios técnicos e palavras-chave do sistema
+ */
+const RESERVED_SLUGS = [
+  // Subdomínios do sistema
+  'admin',
+  'app',
+  'painel',
+  'dashboard',
+  'manage',
+  'portal',
+  'api',
+  'www',
+  
+  // Subdomínios técnicos
+  'mail',
+  'email',
+  'smtp',
+  'pop',
+  'imap',
+  'ftp',
+  'sftp',
+  'ssh',
+  'vpn',
+  'cdn',
+  'static',
+  'assets',
+  'media',
+  'files',
+  'uploads',
+  'download',
+  'downloads',
+  
+  // Palavras reservadas comuns
+  'test',
+  'testing',
+  'dev',
+  'development',
+  'staging',
+  'prod',
+  'production',
+  'demo',
+  'sandbox',
+  'localhost',
+  
+  // Segurança
+  'security',
+  'admin-panel',
+  'administrator',
+  'root',
+  'system',
+  'config',
+  'configuration',
+  
+  // Outros
+  'help',
+  'support',
+  'docs',
+  'documentation',
+  'blog',
+  'news',
+  'about',
+  'contact',
+  'legal',
+  'privacy',
+  'terms',
+];
+
+/**
  * Sanitiza uma string para ser um slug válido
  * Remove acentos, converte para lowercase, substitui espaços por hífens
  * 
@@ -22,10 +91,11 @@ export function sanitizeSlug(input: string): string {
 }
 
 /**
- * Valida se um slug atende aos requisitos DNS
+ * Valida se um slug atende aos requisitos DNS e não é reservado
  * - 3-63 caracteres
  * - Apenas lowercase, números e hífens
  * - Inicia e termina com letra ou número
+ * - Não pode ser uma palavra reservada
  * 
  * @param slug - Slug a ser validado
  * @returns Objeto com resultado da validação e mensagem de erro opcional
@@ -49,6 +119,11 @@ export function validateSlug(slug: string): { valid: boolean; error?: string } {
   
   if (!/^[a-z0-9-]+$/.test(slug)) {
     return { valid: false, error: 'Slug deve conter apenas letras minúsculas, números e hífens' };
+  }
+  
+  // Verifica se é uma palavra reservada
+  if (RESERVED_SLUGS.includes(slug.toLowerCase())) {
+    return { valid: false, error: 'Este slug está reservado e não pode ser usado' };
   }
   
   return { valid: true };

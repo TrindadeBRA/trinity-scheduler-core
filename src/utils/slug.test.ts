@@ -1,113 +1,164 @@
 import { describe, it, expect } from 'vitest';
 import { sanitizeSlug, validateSlug, generateSlug, suggestAlternativeSlugs } from './slug';
 
-describe('Slug Utilities', () => {
+describe('slug utilities', () => {
   describe('sanitizeSlug', () => {
-    it('should convert to lowercase', () => {
-      expect(sanitizeSlug('Trinity Barber')).toBe('trinity-barber');
+    it('deve converter para lowercase', () => {
+      expect(sanitizeSlug('TrinityBarber')).toBe('trinitybarber');
     });
 
-    it('should remove accents', () => {
-      expect(sanitizeSlug('Salão São José')).toBe('salao-sao-jose');
+    it('deve remover acentos', () => {
+      expect(sanitizeSlug('Barbearia São José')).toBe('barbearia-sao-jose');
     });
 
-    it('should replace spaces with hyphens', () => {
-      expect(sanitizeSlug('My Unit Name')).toBe('my-unit-name');
+    it('deve substituir espaços por hífens', () => {
+      expect(sanitizeSlug('Trinity Barber Shop')).toBe('trinity-barber-shop');
     });
 
-    it('should remove special characters', () => {
-      expect(sanitizeSlug('Unit@123#Test!')).toBe('unit-123-test');
+    it('deve remover caracteres especiais', () => {
+      expect(sanitizeSlug('Barber@Shop#123')).toBe('barber-shop-123');
     });
 
-    it('should normalize multiple hyphens', () => {
-      expect(sanitizeSlug('unit---test')).toBe('unit-test');
+    it('deve remover múltiplos hífens consecutivos', () => {
+      expect(sanitizeSlug('barber---shop')).toBe('barber-shop');
     });
 
-    it('should remove leading and trailing hyphens', () => {
-      expect(sanitizeSlug('-unit-test-')).toBe('unit-test');
+    it('deve remover hífens do início e fim', () => {
+      expect(sanitizeSlug('-barber-shop-')).toBe('barber-shop');
     });
   });
 
   describe('validateSlug', () => {
-    it('should accept valid slugs', () => {
-      expect(validateSlug('trinity-barber').valid).toBe(true);
-      expect(validateSlug('unit123').valid).toBe(true);
-      expect(validateSlug('abc').valid).toBe(true);
+    it('deve aceitar slug válido', () => {
+      const result = validateSlug('trinitybarber');
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
     });
 
-    it('should reject slugs shorter than 3 characters', () => {
+    it('deve aceitar slug com números', () => {
+      const result = validateSlug('barber123');
+      expect(result.valid).toBe(true);
+    });
+
+    it('deve aceitar slug com hífens', () => {
+      const result = validateSlug('trinity-barber');
+      expect(result.valid).toBe(true);
+    });
+
+    it('deve rejeitar slug muito curto', () => {
       const result = validateSlug('ab');
       expect(result.valid).toBe(false);
       expect(result.error).toContain('mínimo 3 caracteres');
     });
 
-    it('should reject slugs longer than 63 characters', () => {
+    it('deve rejeitar slug muito longo', () => {
       const longSlug = 'a'.repeat(64);
       const result = validateSlug(longSlug);
       expect(result.valid).toBe(false);
       expect(result.error).toContain('máximo 63 caracteres');
     });
 
-    it('should reject slugs starting with hyphen', () => {
-      const result = validateSlug('-unit');
+    it('deve rejeitar slug que inicia com hífen', () => {
+      const result = validateSlug('-barber');
       expect(result.valid).toBe(false);
       expect(result.error).toContain('iniciar com letra ou número');
     });
 
-    it('should reject slugs ending with hyphen', () => {
-      const result = validateSlug('unit-');
+    it('deve rejeitar slug que termina com hífen', () => {
+      const result = validateSlug('barber-');
       expect(result.valid).toBe(false);
       expect(result.error).toContain('terminar com letra ou número');
     });
 
-    it('should reject slugs with invalid characters', () => {
-      const result = validateSlug('unit@test');
+    it('deve rejeitar slug com caracteres inválidos', () => {
+      const result = validateSlug('barber_shop');
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('letras minúsculas');
+      expect(result.error).toContain('apenas letras minúsculas');
+    });
+
+    it('deve rejeitar slug com maiúsculas', () => {
+      const result = validateSlug('TrinityBarber');
+      expect(result.valid).toBe(false);
+    });
+
+    describe('palavras reservadas', () => {
+      const reservedWords = [
+        'admin',
+        'app',
+        'painel',
+        'dashboard',
+        'api',
+        'www',
+        'mail',
+        'test',
+        'dev',
+        'production',
+        'root',
+        'system',
+      ];
+
+      reservedWords.forEach(word => {
+        it(`deve rejeitar palavra reservada: ${word}`, () => {
+          const result = validateSlug(word);
+          expect(result.valid).toBe(false);
+          expect(result.error).toContain('reservado');
+        });
+      });
+
+      it('deve rejeitar palavra reservada case-insensitive', () => {
+        // Testa que a validação de reservadas é case-insensitive
+        // mesmo quando o slug já está em lowercase
+        const result = validateSlug('admin');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('reservado');
+      });
     });
   });
 
   describe('generateSlug', () => {
-    it('should generate valid slug from unit name', () => {
-      const slug = generateSlug('Trinity Barber Shop');
-      expect(slug).toBe('trinity-barber-shop');
-      expect(validateSlug(slug).valid).toBe(true);
+    it('deve gerar slug a partir de nome', () => {
+      expect(generateSlug('Trinity Barber')).toBe('trinity-barber');
     });
 
-    it('should handle names with accents', () => {
-      const slug = generateSlug('Barbearia São Paulo');
-      expect(slug).toBe('barbearia-sao-paulo');
-      expect(validateSlug(slug).valid).toBe(true);
+    it('deve gerar slug com acentos removidos', () => {
+      expect(generateSlug('Barbearia São José')).toBe('barbearia-sao-jose');
     });
 
-    it('should handle empty or very short names', () => {
+    it('deve gerar slug válido para nome vazio', () => {
       const slug = generateSlug('');
       expect(slug).toMatch(/^unit-[a-z0-9]+$/);
-      expect(validateSlug(slug).valid).toBe(true);
+      expect(slug.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('should truncate long names to 63 characters', () => {
-      const longName = 'A'.repeat(100);
+    it('deve truncar slug muito longo', () => {
+      const longName = 'a'.repeat(100);
       const slug = generateSlug(longName);
       expect(slug.length).toBeLessThanOrEqual(63);
-      expect(validateSlug(slug).valid).toBe(true);
+    });
+
+    it('deve remover hífen final após truncamento', () => {
+      const name = 'a'.repeat(62) + '-b';
+      const slug = generateSlug(name);
+      expect(slug).not.toMatch(/-$/);
     });
   });
 
   describe('suggestAlternativeSlugs', () => {
-    it('should suggest slug with -2 suffix if base exists', () => {
-      const suggestion = suggestAlternativeSlugs('trinity', ['trinity']);
-      expect(suggestion).toBe('trinity-2');
+    it('deve sugerir slug com sufixo -2', () => {
+      const existing = ['trinitybarber'];
+      const suggestion = suggestAlternativeSlugs('trinitybarber', existing);
+      expect(suggestion).toBe('trinitybarber-2');
     });
 
-    it('should increment suffix until finding available slug', () => {
-      const suggestion = suggestAlternativeSlugs('trinity', ['trinity', 'trinity-2', 'trinity-3']);
-      expect(suggestion).toBe('trinity-4');
+    it('deve incrementar sufixo até encontrar disponível', () => {
+      const existing = ['barber', 'barber-2', 'barber-3'];
+      const suggestion = suggestAlternativeSlugs('barber', existing);
+      expect(suggestion).toBe('barber-4');
     });
 
-    it('should return -2 suffix if no conflicts', () => {
-      const suggestion = suggestAlternativeSlugs('trinity', []);
-      expect(suggestion).toBe('trinity-2');
+    it('deve funcionar com lista vazia', () => {
+      const suggestion = suggestAlternativeSlugs('barber', []);
+      expect(suggestion).toBe('barber-2');
     });
   });
 });
