@@ -107,7 +107,13 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
     if (date) where.date = date;
     if (effectiveProfessionalId) where.professionalId = effectiveProfessionalId;
-    if (status && status !== 'all') where.status = status;
+    
+    // Suporta múltiplos status separados por vírgula
+    if (status && status !== 'all') {
+      const statusList = (status as string).split(',').map(s => s.trim());
+      where.status = statusList.length > 1 ? { in: statusList } : statusList[0];
+    }
+    
     if (serviceId && serviceId !== 'all') where.serviceId = serviceId;
     if (clientId && clientId !== 'all') where.clientId = clientId;
     if (unitId) where.unitId = unitId;

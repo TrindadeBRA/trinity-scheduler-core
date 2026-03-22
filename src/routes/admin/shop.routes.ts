@@ -5,6 +5,14 @@ import { AppError } from '../../utils/errors';
 
 const router = Router();
 
+// Niche validation constants
+const VALID_NICHES = ['barbearia', 'salao-beleza'] as const;
+type Niche = typeof VALID_NICHES[number];
+
+function isValidNiche(value: unknown): value is Niche {
+  return typeof value === 'string' && VALID_NICHES.includes(value as Niche);
+}
+
 /**
  * @swagger
  * /admin/shop:
@@ -68,7 +76,16 @@ router.put('/shop', authorize('leader', 'admin'), async (req: Request, res: Resp
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
 
-    const { name, phone, email, address, bookingBuffer } = req.body;
+    const { name, phone, email, address, bookingBuffer, niche } = req.body;
+
+    // Validate niche if provided
+    if (niche !== undefined && !isValidNiche(niche)) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        `Nicho inválido. Valores permitidos: ${VALID_NICHES.join(', ')}`
+      );
+    }
 
     const shop = await prisma.shop.update({
       where: { id: shopId },
@@ -78,6 +95,7 @@ router.put('/shop', authorize('leader', 'admin'), async (req: Request, res: Resp
         ...(email !== undefined && { email }),
         ...(address !== undefined && { address }),
         ...(bookingBuffer !== undefined && { bookingBuffer: Number(bookingBuffer) }),
+        ...(niche !== undefined && { niche }),
       },
     });
 
@@ -175,6 +193,27 @@ router.put('/shop/hours', authorize('leader', 'admin'), async (req: Request, res
   } catch (err) {
     next(err);
   }
+});
+
+/**
+ * @swagger
+ * /admin/shop/niches:
+ *   get:
+ *     tags: [Admin Shop]
+ *     summary: Listar nichos disponíveis
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de nichos disponíveis
+ */
+router.get('/shop/niches', async (req: Request, res: Response) => {
+  res.json({
+    niches: VALID_NICHES.map(id => ({
+      id,
+      displayName: id === 'barbearia' ? 'Barbearia' : 'Salão de Beleza'
+    }))
+  });
 });
 
 export default router;

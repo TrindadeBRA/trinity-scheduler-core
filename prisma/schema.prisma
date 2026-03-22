@@ -13,6 +13,7 @@ model Shop {
   phone         String?
   email         String?
   address       String?
+  niche         String   @default("barbearia")
   bookingBuffer Int      @default(0) // minutos de antecedência mínima para agendamento
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

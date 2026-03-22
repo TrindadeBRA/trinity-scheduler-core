@@ -52,14 +52,19 @@ router.get('/info', async (req: Request, res: Response, next: NextFunction) => {
     if (unitId) {
       const unit = await prisma.unit.findFirst({
         where: { id: unitId as string, shopId },
-        select: { name: true },
+        select: { name: true, shop: { select: { niche: true } } },
       });
-      if (unit) return res.json(unit);
+      if (unit) {
+        return res.json({ 
+          name: unit.name,
+          niche: unit.shop.niche 
+        });
+      }
     }
 
     const shop = await prisma.shop.findUnique({
       where: { id: shopId },
-      select: { name: true },
+      select: { name: true, niche: true },
     });
 
     if (!shop) throw new AppError(404, 'NOT_FOUND', 'Estabelecimento não encontrado');

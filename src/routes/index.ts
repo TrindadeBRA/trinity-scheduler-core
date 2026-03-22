@@ -36,7 +36,7 @@ export function mountRoutes(app: Express): void {
   app.use('/professionals', shopResolver, clientProfessionalsRouter);
   app.use('/availability', shopResolver, clientAvailabilityRouter);
   app.use('/appointments', shopResolver, clientAppointmentsRouter);
-  app.use('/shop', shopResolver, clientShopRouter);
+  app.use('/client/shop', shopResolver, clientShopRouter);
 
   // ─── Admin auth (public — no authMiddleware) ──────────────────────────────
   app.use('/admin/auth', adminAuthRouter);
