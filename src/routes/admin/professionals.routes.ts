@@ -208,6 +208,13 @@ router.post('/professionals', authorize('leader', 'admin'), async (req: Request,
 
     const { name, unitId, avatar, specialties, phone, email, active, workingHours, credentials } = req.body;
 
+    console.log('[POST /professionals] body recebido:', {
+      name, phone, email, active,
+      hasCredentials: !!credentials,
+      credentialsEmail: credentials?.email,
+      credentialsHasPassword: !!credentials?.password,
+    });
+
     if (!name) throw new AppError(400, 'VALIDATION_ERROR', 'Campo name é obrigatório');
 
     const professional = await prisma.professional.create({

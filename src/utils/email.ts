@@ -1,7 +1,14 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 
-// Create reusable transporter
+console.log('[EMAIL] Inicializando transporter SMTP:', {
+  host: env.SMTP_HOST,
+  port: env.SMTP_PORT,
+  user: env.SMTP_USER,
+  pass: env.SMTP_PASS ? `${env.SMTP_PASS.slice(0, 4)}****` : '(vazio)',
+  from: env.SMTP_FROM_EMAIL,
+});
+
 const transporter = nodemailer.createTransport({
   host: env.SMTP_HOST,
   port: env.SMTP_PORT,
@@ -11,12 +18,11 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Verify connection configuration
 transporter.verify((error, success) => {
   if (error) {
-    console.error('SMTP connection error:', error);
+    console.error('[EMAIL] Falha na verificação SMTP:', error);
   } else {
-    console.log('SMTP server is ready to send emails');
+    console.log('[EMAIL] SMTP verificado com sucesso:', success);
   }
 });
 
@@ -27,189 +33,126 @@ export interface EmailOptions {
   text?: string;
 }
 
-/**
- * Send email using configured SMTP transport
- */
 export async function sendEmail(options: EmailOptions): Promise<void> {
+  const mailOptions = {
+    from: `"${env.SMTP_FROM_NAME}" <${env.SMTP_FROM_EMAIL}>`,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+    text: options.text,
+  };
+
+  console.log('[EMAIL] Tentando enviar email:', {
+    from: mailOptions.from,
+    to: mailOptions.to,
+    subject: mailOptions.subject,
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+  });
+
   try {
-    await transporter.sendMail({
-      from: `"${env.SMTP_FROM_NAME}" <${env.SMTP_FROM_EMAIL}>`,
+    const info = await transporter.sendMail(mailOptions);
+    console.log('[EMAIL] Email enviado com sucesso:', {
+      to: options.to,
+      messageId: info.messageId,
+      response: info.response,
+      accepted: info.accepted,
+      rejected: info.rejected,
+    });
+  } catch (error) {
+    console.error('[EMAIL] Erro ao enviar email:', {
       to: options.to,
       subject: options.subject,
-      html: options.html,
-      text: options.text,
+      error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
     });
-    console.log(`Email sent successfully to ${options.to}`);
-  } catch (error) {
-    console.error('Error sending email:', error);
     throw error;
   }
 }
 
 /**
- * Send appointment confirmation email
+ * Envia as credenciais de acesso ao profissional recém-cadastrado
  */
-export async function sendAppointmentConfirmation(
-  clientEmail: string,
-  appointmentDetails: {
-    clientName: string;
-    serviceName: string;
-    professionalName: string;
-    date: string;
-    time: string;
+export async function sendProfessionalCredentials(
+  email: string,
+  details: {
+    name: string;
     shopName: string;
-    unitAddress?: string;
+    loginEmail: string;
+    password: string;
+    loginUrl?: string;
   }
 ): Promise<void> {
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; }
-          .content { background-color: #f9fafb; padding: 30px; }
-          .details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-          .detail-row { margin: 10px 0; }
-          .label { font-weight: bold; color: #4F46E5; }
-          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Agendamento Confirmado!</h1>
-          </div>
-          <div class="content">
-            <p>Olá, ${appointmentDetails.clientName}!</p>
-            <p>Seu agendamento foi confirmado com sucesso. Confira os detalhes abaixo:</p>
-            
-            <div class="details">
-              <div class="detail-row">
-                <span class="label">Serviço:</span> ${appointmentDetails.serviceName}
-              </div>
-              <div class="detail-row">
-                <span class="label">Profissional:</span> ${appointmentDetails.professionalName}
-              </div>
-              <div class="detail-row">
-                <span class="label">Data:</span> ${appointmentDetails.date}
-              </div>
-              <div class="detail-row">
-                <span class="label">Horário:</span> ${appointmentDetails.time}
-              </div>
-              <div class="detail-row">
-                <span class="label">Local:</span> ${appointmentDetails.shopName}
-              </div>
-              ${appointmentDetails.unitAddress ? `
-              <div class="detail-row">
-                <span class="label">Endereço:</span> ${appointmentDetails.unitAddress}
-              </div>
-              ` : ''}
-            </div>
-            
-            <p>Aguardamos você!</p>
-          </div>
-          <div class="footer">
-            <p>Este é um email automático, por favor não responda.</p>
-            <p>&copy; ${new Date().getFullYear()} ${appointmentDetails.shopName}. Todos os direitos reservados.</p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
+  const loginUrl = details.loginUrl || env.ADMIN_URL || 'http://localhost:8080';
 
-  const text = `
-Agendamento Confirmado!
-
-Olá, ${appointmentDetails.clientName}!
-
-Seu agendamento foi confirmado com sucesso. Confira os detalhes abaixo:
-
-Serviço: ${appointmentDetails.serviceName}
-Profissional: ${appointmentDetails.professionalName}
-Data: ${appointmentDetails.date}
-Horário: ${appointmentDetails.time}
-Local: ${appointmentDetails.shopName}
-${appointmentDetails.unitAddress ? `Endereço: ${appointmentDetails.unitAddress}` : ''}
-
-Aguardamos você!
-
----
-Este é um email automático, por favor não responda.
-© ${new Date().getFullYear()} ${appointmentDetails.shopName}. Todos os direitos reservados.
-  `;
-
-  await sendEmail({
-    to: clientEmail,
-    subject: `Agendamento Confirmado - ${appointmentDetails.shopName}`,
-    html,
-    text,
+  console.log('[EMAIL] Preparando email de credenciais:', {
+    to: email,
+    name: details.name,
+    shopName: details.shopName,
+    loginUrl,
   });
-}
 
-/**
- * Send appointment cancellation email
- */
-export async function sendAppointmentCancellation(
-  clientEmail: string,
-  appointmentDetails: {
-    clientName: string;
-    serviceName: string;
-    date: string;
-    time: string;
-    shopName: string;
-    reason?: string;
-  }
-): Promise<void> {
   const html = `
     <!DOCTYPE html>
     <html>
       <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #EF4444; color: white; padding: 20px; text-align: center; }
-          .content { background-color: #f9fafb; padding: 30px; }
-          .details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-          .detail-row { margin: 10px 0; }
-          .label { font-weight: bold; color: #EF4444; }
-          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5; line-height: 1.6; }
+          .wrapper { background-color: #0a0a0a; padding: 40px 20px; }
+          .container { max-width: 560px; margin: 0 auto; }
+          .header { background-color: #111111; border: 1px solid #222222; border-bottom: 3px solid #EAB308; border-radius: 10px 10px 0 0; padding: 32px 36px; text-align: center; }
+          .header h1 { color: #EAB308; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+          .header p { color: #888888; font-size: 13px; margin-top: 6px; }
+          .content { background-color: #111111; border: 1px solid #222222; border-top: none; padding: 32px 36px; }
+          .greeting { color: #e5e5e5; font-size: 15px; margin-bottom: 8px; }
+          .subtitle { color: #888888; font-size: 14px; margin-bottom: 24px; }
+          .credentials { background-color: #1a1a1a; border: 1px solid #2a2a2a; border-left: 3px solid #EAB308; border-radius: 6px; padding: 20px 24px; margin: 24px 0; }
+          .row { display: flex; align-items: center; margin: 10px 0; gap: 10px; }
+          .label { color: #888888; font-size: 13px; min-width: 60px; }
+          .value { font-family: 'Courier New', monospace; background-color: #0a0a0a; color: #EAB308; padding: 4px 10px; border-radius: 4px; font-size: 14px; border: 1px solid #2a2a2a; word-break: break-all; }
+          .btn-wrap { text-align: center; margin: 28px 0 8px; }
+          .btn { display: inline-block; padding: 13px 32px; background-color: #EAB308; color: #000000; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; letter-spacing: 0.3px; }
+          .warning { background-color: #1a1500; border: 1px solid #3a2e00; border-left: 3px solid #EAB308; border-radius: 6px; padding: 12px 16px; font-size: 13px; color: #a89030; margin-top: 24px; }
+          .footer { background-color: #0d0d0d; border: 1px solid #1a1a1a; border-top: none; border-radius: 0 0 10px 10px; padding: 20px 36px; text-align: center; }
+          .footer p { color: #555555; font-size: 12px; line-height: 1.8; }
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="header">
-            <h1>Agendamento Cancelado</h1>
-          </div>
-          <div class="content">
-            <p>Olá, ${appointmentDetails.clientName}!</p>
-            <p>Seu agendamento foi cancelado. Confira os detalhes abaixo:</p>
-            
-            <div class="details">
-              <div class="detail-row">
-                <span class="label">Serviço:</span> ${appointmentDetails.serviceName}
-              </div>
-              <div class="detail-row">
-                <span class="label">Data:</span> ${appointmentDetails.date}
-              </div>
-              <div class="detail-row">
-                <span class="label">Horário:</span> ${appointmentDetails.time}
-              </div>
-              ${appointmentDetails.reason ? `
-              <div class="detail-row">
-                <span class="label">Motivo:</span> ${appointmentDetails.reason}
-              </div>
-              ` : ''}
+        <div class="wrapper">
+          <div class="container">
+            <div class="header">
+              <h1>${details.shopName}</h1>
+              <p>Painel Administrativo</p>
             </div>
-            
-            <p>Esperamos vê-lo em breve! Você pode fazer um novo agendamento a qualquer momento.</p>
-          </div>
-          <div class="footer">
-            <p>Este é um email automático, por favor não responda.</p>
-            <p>&copy; ${new Date().getFullYear()} ${appointmentDetails.shopName}. Todos os direitos reservados.</p>
+            <div class="content">
+              <p class="greeting">Olá, <strong style="color:#EAB308">${details.name}</strong>!</p>
+              <p class="subtitle">Seu acesso ao painel foi criado. Use as credenciais abaixo para entrar:</p>
+
+              <div class="credentials">
+                <div class="row">
+                  <span class="label">Email</span>
+                  <span class="value">${details.loginEmail}</span>
+                </div>
+                <div class="row">
+                  <span class="label">Senha</span>
+                  <span class="value">${details.password}</span>
+                </div>
+              </div>
+
+              <div class="btn-wrap">
+                <a href="${loginUrl}" class="btn">Acessar o painel →</a>
+              </div>
+
+              <div class="warning">
+                ⚠️ Por segurança, recomendamos alterar sua senha no primeiro acesso.
+              </div>
+            </div>
+            <div class="footer">
+              <p>Este é um email automático, por favor não responda.</p>
+              <p>&copy; ${new Date().getFullYear()} ${details.shopName}. Todos os direitos reservados.</p>
+            </div>
           </div>
         </div>
       </body>
@@ -217,130 +160,27 @@ export async function sendAppointmentCancellation(
   `;
 
   const text = `
-Agendamento Cancelado
+Bem-vindo ao ${details.shopName}!
 
-Olá, ${appointmentDetails.clientName}!
+Olá, ${details.name}!
 
-Seu agendamento foi cancelado. Confira os detalhes abaixo:
+Seu acesso ao painel administrativo foi criado. Use as credenciais abaixo para entrar:
 
-Serviço: ${appointmentDetails.serviceName}
-Data: ${appointmentDetails.date}
-Horário: ${appointmentDetails.time}
-${appointmentDetails.reason ? `Motivo: ${appointmentDetails.reason}` : ''}
+Email: ${details.loginEmail}
+Senha: ${details.password}
 
-Esperamos vê-lo em breve! Você pode fazer um novo agendamento a qualquer momento.
+Acesse: ${loginUrl}
 
----
-Este é um email automático, por favor não responda.
-© ${new Date().getFullYear()} ${appointmentDetails.shopName}. Todos os direitos reservados.
-  `;
-
-  await sendEmail({
-    to: clientEmail,
-    subject: `Agendamento Cancelado - ${appointmentDetails.shopName}`,
-    html,
-    text,
-  });
-}
-
-/**
- * Send appointment reminder email
- */
-export async function sendAppointmentReminder(
-  clientEmail: string,
-  appointmentDetails: {
-    clientName: string;
-    serviceName: string;
-    professionalName: string;
-    date: string;
-    time: string;
-    shopName: string;
-    unitAddress?: string;
-  }
-): Promise<void> {
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #F59E0B; color: white; padding: 20px; text-align: center; }
-          .content { background-color: #f9fafb; padding: 30px; }
-          .details { background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-          .detail-row { margin: 10px 0; }
-          .label { font-weight: bold; color: #F59E0B; }
-          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Lembrete de Agendamento</h1>
-          </div>
-          <div class="content">
-            <p>Olá, ${appointmentDetails.clientName}!</p>
-            <p>Este é um lembrete do seu agendamento:</p>
-            
-            <div class="details">
-              <div class="detail-row">
-                <span class="label">Serviço:</span> ${appointmentDetails.serviceName}
-              </div>
-              <div class="detail-row">
-                <span class="label">Profissional:</span> ${appointmentDetails.professionalName}
-              </div>
-              <div class="detail-row">
-                <span class="label">Data:</span> ${appointmentDetails.date}
-              </div>
-              <div class="detail-row">
-                <span class="label">Horário:</span> ${appointmentDetails.time}
-              </div>
-              <div class="detail-row">
-                <span class="label">Local:</span> ${appointmentDetails.shopName}
-              </div>
-              ${appointmentDetails.unitAddress ? `
-              <div class="detail-row">
-                <span class="label">Endereço:</span> ${appointmentDetails.unitAddress}
-              </div>
-              ` : ''}
-            </div>
-            
-            <p>Aguardamos você!</p>
-          </div>
-          <div class="footer">
-            <p>Este é um email automático, por favor não responda.</p>
-            <p>&copy; ${new Date().getFullYear()} ${appointmentDetails.shopName}. Todos os direitos reservados.</p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
-
-  const text = `
-Lembrete de Agendamento
-
-Olá, ${appointmentDetails.clientName}!
-
-Este é um lembrete do seu agendamento:
-
-Serviço: ${appointmentDetails.serviceName}
-Profissional: ${appointmentDetails.professionalName}
-Data: ${appointmentDetails.date}
-Horário: ${appointmentDetails.time}
-Local: ${appointmentDetails.shopName}
-${appointmentDetails.unitAddress ? `Endereço: ${appointmentDetails.unitAddress}` : ''}
-
-Aguardamos você!
+Por segurança, recomendamos alterar sua senha no primeiro acesso.
 
 ---
 Este é um email automático, por favor não responda.
-© ${new Date().getFullYear()} ${appointmentDetails.shopName}. Todos os direitos reservados.
+© ${new Date().getFullYear()} ${details.shopName}. Todos os direitos reservados.
   `;
 
   await sendEmail({
-    to: clientEmail,
-    subject: `Lembrete: Agendamento em ${appointmentDetails.shopName}`,
+    to: email,
+    subject: `Suas credenciais de acesso - ${details.shopName}`,
     html,
     text,
   });

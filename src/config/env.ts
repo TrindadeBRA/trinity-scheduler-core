@@ -18,4 +18,6 @@ export const env = {
   SMTP_PASS: process.env.SMTP_PASS || '',
   SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL || 'noreply@trinityscheduler.com',
   SMTP_FROM_NAME: process.env.SMTP_FROM_NAME || 'Trinity Scheduler',
+
+  ADMIN_URL: process.env.ADMIN_URL || 'http://localhost:8080',
 };

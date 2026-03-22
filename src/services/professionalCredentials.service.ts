@@ -1,6 +1,7 @@
 import { prisma } from '../utils/prisma';
 import { hashPassword } from '../utils/password';
 import { AppError } from '../utils/errors';
+import { sendProfessionalCredentials } from '../utils/email';
 import { User } from '@prisma/client';
 
 export interface CreateCredentialsInput {
@@ -49,6 +50,22 @@ export async function createProfessionalCredentials(
       professionalId,
     },
   });
+
+  // Enviar credenciais por email (não bloqueia em caso de falha)
+  try {
+    console.log('[CREDENTIALS] Buscando shop para email de credenciais, shopId:', shopId);
+    const shop = await prisma.shop.findUnique({ where: { id: shopId }, select: { name: true } });
+    console.log('[CREDENTIALS] Shop encontrado:', shop?.name);
+    await sendProfessionalCredentials(email, {
+      name,
+      shopName: shop?.name || 'Trinity Scheduler',
+      loginEmail: email,
+      password,
+    });
+    console.log('[CREDENTIALS] Email de credenciais enviado com sucesso para:', email);
+  } catch (emailError) {
+    console.error('[CREDENTIALS] Falha ao enviar email de credenciais:', emailError);
+  }
 
   return user;
 }
