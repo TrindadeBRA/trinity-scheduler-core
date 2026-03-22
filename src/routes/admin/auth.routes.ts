@@ -141,12 +141,16 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     const passwordHash = await hashPassword(owner.password);
 
     const result = await prisma.$transaction(async (tx) => {
+      const VALID_NICHES = ['barbearia', 'salao-beleza'];
+      const niche = shop.niche && VALID_NICHES.includes(shop.niche) ? shop.niche : 'barbearia';
+
       const newShop = await tx.shop.create({
         data: {
           name: shop.name,
           phone: shop.phone || null,
           email: shop.email || null,
           address: shop.address || null,
+          niche,
         },
       });
 
