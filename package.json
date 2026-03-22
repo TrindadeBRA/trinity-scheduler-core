@@ -4,7 +4,7 @@
   "packageManager": "yarn@4.11.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "prisma generate && prisma migrate deploy && tsc",
+    "build": "node scripts/pre-migrate.js && prisma generate && prisma migrate deploy && tsc",
     "start": "node dist/index.js",
     "test": "vitest --run",
     "prisma:generate": "prisma generate",
@@ -24,6 +24,7 @@
     "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.2.1",
+    "pg": "^8.13.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },

@@ -4,27 +4,27 @@
 
 A migração `20260321225645_make_slug_required_and_unique` falhou porque tentou tornar o campo `slug` obrigatório, mas existiam registros com valores `null` no banco de dados.
 
-## Solução
+## Solução Automática (Implementada)
 
-### Opção 1: Script Node.js (Recomendado)
+O script de build agora inclui uma verificação automática (`scripts/pre-migrate.js`) que:
+1. Detecta migrações falhadas
+2. Preenche slugs nulos automaticamente
+3. Resolve duplicatas
+4. Remove a migração falhada do registro
+5. Permite que as migrações prossigam normalmente
+
+**Nenhuma ação manual é necessária!** O próximo deploy corrigirá automaticamente o problema.
+
+## Solução Manual (Se Necessário)
+
+### Opção 1: Script Node.js
 
 Execute o script automatizado:
 
 ```bash
 cd trinity-scheduler-core
-node scripts/fix-failed-migration.js
-```
-
-Este script irá:
-1. Remover a entrada da migração falhada
-2. Preencher todos os slugs nulos com valores gerados a partir do nome
-3. Resolver slugs duplicados adicionando o shopId
-4. Verificar se tudo está correto
-
-Após executar o script, rode as migrações normalmente:
-
-```bash
-yarn prisma:migrate
+yarn add pg  # Se ainda não instalado
+yarn fix:migration
 ```
 
 ### Opção 2: SQL Manual
@@ -39,13 +39,12 @@ Ou copie e execute o conteúdo de `prisma/fix-migration.sql` diretamente no seu 
 
 ## Para Produção (Render/Railway/etc)
 
+**Não é necessário fazer nada!** O script `pre-migrate.js` será executado automaticamente durante o build.
+
+Se preferir executar manualmente:
 1. Conecte-se ao banco de dados de produção via CLI ou interface web
 2. Execute o script SQL de `prisma/fix-migration.sql`
 3. Faça o redeploy da aplicação
-
-## Prevenção
-
-A migração foi corrigida para incluir os passos de preenchimento de dados antes de tornar o campo obrigatório. Novos deploys não terão este problema.
 
 ## Verificação
 
@@ -62,3 +61,12 @@ FROM "Unit";
 O resultado deve mostrar:
 - `nulls` = 0
 - `total` = `unique_slugs`
+
+## Como Funciona
+
+O script `pre-migrate.js`:
+1. É executado antes de `prisma migrate deploy` no comando `yarn build`
+2. Verifica se existem migrações falhadas na tabela `_prisma_migrations`
+3. Se encontrar a migração do slug falhada, executa a correção automaticamente
+4. Remove o registro da migração falhada
+5. Permite que o Prisma aplique a migração novamente (agora com sucesso)
