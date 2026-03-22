@@ -5,6 +5,7 @@ import { hashPassword, comparePassword } from '../../utils/password';
 import { signToken } from '../../utils/jwt';
 import { AppError } from '../../utils/errors';
 import { generateSlug, sanitizeSlug, validateSlug } from '../../utils/slug';
+import { authMiddleware } from '../../middlewares/auth';
 
 const router = Router();
 
@@ -293,6 +294,97 @@ router.post('/forgot-password', async (req: Request, res: Response, next: NextFu
 
     // Sempre retorna 200 para não vazar informação sobre emails cadastrados
     res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções em breve' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/me', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      include: { professional: true },
+    });
+
+    if (!user) {
+      throw new AppError(404, 'NOT_FOUND', 'Usuário não encontrado');
+    }
+
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.professional?.phone ?? null,
+      role: user.role,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/profile', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, phone, newPassword } = req.body;
+
+    if (name !== undefined && name.length < 2) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Nome deve ter no mínimo 2 caracteres');
+    }
+
+    if (newPassword !== undefined) {
+      const hasLower = /[a-z]/.test(newPassword);
+      const hasUpper = /[A-Z]/.test(newPassword);
+      const hasDigit = /\d/.test(newPassword);
+      const hasSpecial = /[^\w\s]/.test(newPassword);
+      const hasLength = newPassword.length >= 8;
+
+      if (!hasLower || !hasUpper || !hasDigit || !hasSpecial || !hasLength) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'A senha não atende todos os requisitos');
+      }
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      include: { professional: true },
+    });
+
+    if (!user) {
+      throw new AppError(404, 'NOT_FOUND', 'Usuário não encontrado');
+    }
+
+    const userUpdateData: { name?: string; passwordHash?: string } = {};
+
+    if (name !== undefined) {
+      userUpdateData.name = name;
+    }
+
+    if (newPassword !== undefined) {
+      userUpdateData.passwordHash = await hashPassword(newPassword);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: userUpdateData,
+      include: { professional: true },
+    });
+
+    if (phone !== undefined && user.professionalId) {
+      await prisma.professional.update({
+        where: { id: user.professionalId },
+        data: { phone },
+      });
+    }
+
+    const finalPhone = phone !== undefined && user.professionalId
+      ? phone
+      : updatedUser.professional?.phone ?? null;
+
+    res.json({
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: finalPhone,
+      role: updatedUser.role,
+    });
   } catch (err) {
     next(err);
   }

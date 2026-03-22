@@ -1,15 +1,12 @@
 {
   "mcpServers": {
-    "db-kronuz-local": {
+    "db-local": {
       "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-postgres",
+        "mcp-postgres-server",
         "postgresql://trinity:trinity123@localhost:5432/trinity_scheduler"
       ],
-      "env": {
-        "PGPASSWORD": "trinity123"
-      },
       "disabled": false,
       "autoApprove": []
     }
