@@ -19,51 +19,56 @@ trinity-scheduler-core/
 src/
 ├── routes/                 # API route handlers
 │   ├── admin/             # Admin panel routes (/admin/*)
-│   │   ├── auth.routes.ts
-│   │   ├── appointments.routes.ts
-│   │   ├── clients.routes.ts
-│   │   ├── professionals.routes.ts
-│   │   ├── services.routes.ts
-│   │   ├── units.routes.ts
-│   │   ├── dashboard.routes.ts
-│   │   ├── revenue.routes.ts
-│   │   ├── shop.routes.ts
-│   │   ├── upload.routes.ts
-│   │   └── system.routes.ts
+│   │   ├── auth.routes.ts           # Login, register, password reset
+│   │   ├── appointments.routes.ts   # Appointment CRUD
+│   │   ├── clients.routes.ts        # Client management
+│   │   ├── professionals.routes.ts  # Professional/staff management
+│   │   ├── services.routes.ts       # Service catalog management
+│   │   ├── units.routes.ts          # Unit management
+│   │   ├── dashboard.routes.ts      # Dashboard statistics
+│   │   ├── revenue.routes.ts        # Revenue reports
+│   │   ├── shop.routes.ts           # Shop configuration
+│   │   ├── upload.routes.ts         # File upload (presigned URLs)
+│   │   ├── system.routes.ts         # System utilities
+│   │   └── __tests__/               # Route tests
 │   ├── client/            # Client app routes (/client/*)
-│   │   ├── auth.routes.ts
-│   │   ├── appointments.routes.ts
-│   │   ├── services.routes.ts
-│   │   ├── addons.routes.ts
-│   │   ├── professionals.routes.ts
-│   │   ├── availability.routes.ts
-│   │   └── shop.routes.ts
-│   └── index.ts           # Route mounting
+│   │   ├── auth.routes.ts           # Phone-based authentication
+│   │   ├── appointments.routes.ts   # Appointment creation/cancellation
+│   │   ├── services.routes.ts       # Service listing
+│   │   ├── addons.routes.ts         # Addon services
+│   │   ├── professionals.routes.ts  # Professional listing
+│   │   ├── availability.routes.ts   # Available time slots
+│   │   ├── shop.routes.ts           # Shop information
+│   │   └── units.routes.ts          # Unit listing
+│   ├── public.routes.ts   # Public routes (health check, etc.)
+│   └── index.ts           # Route mounting and registration
 ├── services/              # Business logic services
-│   ├── appointment.service.ts
-│   ├── availability.service.ts
-│   └── cron.service.ts
+│   ├── appointment.service.ts   # Appointment business logic
+│   ├── availability.service.ts  # Availability calculation
+│   └── cron.service.ts          # Scheduled jobs (reminders, cleanup)
 ├── middlewares/           # Express middlewares
-│   ├── auth.ts           # JWT authentication
-│   ├── authorize.ts      # Role-based authorization
-│   ├── shopResolver.ts   # Multi-tenant shop resolution
-│   ├── tenantFilter.ts   # Tenant data isolation
-│   └── errorHandler.ts   # Global error handling
+│   ├── auth.ts           # JWT authentication and token verification
+│   ├── authorize.ts      # Role-based authorization (admin, leader, professional)
+│   ├── shopResolver.ts   # Multi-tenant shop resolution from headers
+│   ├── tenantFilter.ts   # Automatic tenant data isolation for Prisma
+│   └── errorHandler.ts   # Global error handling and formatting
 ├── utils/                 # Utility functions
-│   ├── prisma.ts         # Prisma client instance
-│   ├── jwt.ts            # JWT token utilities
-│   ├── password.ts       # Password hashing
-│   ├── errors.ts         # Custom error classes
-│   ├── pagination.ts     # Pagination helpers
-│   └── r2.ts             # Cloudflare R2/S3 client
+│   ├── prisma.ts         # Prisma client singleton instance
+│   ├── jwt.ts            # JWT token generation and verification
+│   ├── password.ts       # Password hashing and comparison (bcrypt)
+│   ├── errors.ts         # Custom error classes (AppError)
+│   ├── pagination.ts     # Pagination helpers and metadata
+│   ├── r2.ts             # Cloudflare R2/S3 client and presigned URLs
+│   ├── slug.ts           # URL slug generation and validation
+│   └── slug.test.ts      # Slug utility tests
 ├── config/                # Configuration
-│   ├── env.ts            # Environment variables
-│   ├── constants.ts      # Application constants
-│   └── swagger.ts        # Swagger/OpenAPI config
+│   ├── env.ts            # Environment variable validation and export
+│   ├── constants.ts      # Application constants (roles, statuses, etc.)
+│   └── swagger.ts        # Swagger/OpenAPI configuration
 ├── types/                 # TypeScript type definitions
-│   └── express.d.ts      # Express request extensions
-├── app.ts                 # Express app setup
-└── index.ts               # Application entry point
+│   └── express.d.ts      # Express request extensions (shopId, userId, role)
+├── app.ts                 # Express app setup (middlewares, routes, error handling)
+└── index.ts               # Application entry point (server start, cron init)
 ```
 
 ## Key Conventions
@@ -83,15 +88,30 @@ Business logic is extracted into services in `src/services/`:
 
 ### Middleware Chain
 
-Typical middleware flow:
+Typical middleware flow for requests:
+
+**Admin Routes:**
+1. `cors()` - CORS handling with allowed origins
+2. `express.json()` - Body parsing
+3. `authMiddleware` - Verify JWT token, extract userId, shopId, role
+4. `authorize([roles])` - Check user role (admin, leader, professional)
+5. `tenantFilter` - Apply tenant isolation to Prisma queries
+6. Route handler - Execute business logic
+7. `errorHandler` - Global error handling and response formatting
+
+**Client Routes:**
 1. `cors()` - CORS handling
 2. `express.json()` - Body parsing
-3. `shopResolver` - Extract and validate shopId (client routes)
-4. `authMiddleware` - Verify JWT token (admin routes)
-5. `authorize([roles])` - Check user role (admin routes)
-6. `tenantFilter` - Apply tenant isolation to Prisma queries
-7. Route handler
-8. `errorHandler` - Global error handling
+3. `shopResolver` - Extract and validate shopId from `X-Shop-Id` header
+4. `tenantFilter` - Apply tenant isolation to Prisma queries
+5. Route handler - Execute business logic
+6. `errorHandler` - Global error handling
+
+**Public Routes:**
+1. `cors()` - CORS handling
+2. `express.json()` - Body parsing
+3. Route handler - Execute business logic
+4. `errorHandler` - Global error handling
 
 ### Database Access
 
@@ -160,6 +180,10 @@ Cron jobs defined in `services/cron.service.ts`:
 
 ### Testing
 
-- Unit tests co-located with source files or in dedicated test directories
-- Property-based tests using fast-check
-- Run with `yarn test`
+- **Unit Tests**: Co-located with source files (e.g., `slug.test.ts`, `units.routes.test.ts`)
+- **Property-Based Tests**: Using fast-check for correctness properties
+- **Test Framework**: Vitest v2.1 with Node.js test environment
+- **Test Commands**: 
+  - `yarn test` - Run all tests once
+  - Tests are located in `__tests__/` directories or co-located with source files
+- **Coverage**: Tests cover critical business logic, utilities, and route handlers
