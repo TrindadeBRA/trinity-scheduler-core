@@ -137,18 +137,21 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
 
     const direction = sortOrder === 'asc' ? 'asc' as const : 'desc' as const;
     const relationSortMap: Record<string, object[]> = {
-      clientName: [{ client: { name: direction } }],
-      serviceName: [{ service: { name: direction } }],
-      professionalName: [{ professional: { name: direction } }],
+      clientName: [{ client: { name: direction } }, { date: direction }, { time: direction }],
+      serviceName: [{ service: { name: direction } }, { date: direction }, { time: direction }],
+      professionalName: [{ professional: { name: direction } }, { date: direction }, { time: direction }],
     };
     const directFields = ['date', 'time', 'status', 'price', 'duration'];
     let orderBy: object[];
     if (relationSortMap[sortBy as string]) {
       orderBy = relationSortMap[sortBy as string];
+    } else if (sortBy === 'date') {
+      // Quando ordenar por data, adicionar time como ordenação secundária
+      orderBy = [{ date: direction }, { time: direction }];
     } else if (directFields.includes(sortBy as string)) {
       orderBy = [{ [sortBy as string]: direction }];
     } else {
-      orderBy = [{ date: 'desc' }, { time: 'desc' }];
+      orderBy = [{ date: 'asc' }, { time: 'asc' }];
     }
 
     const [appointments, total] = await prisma.$transaction([
