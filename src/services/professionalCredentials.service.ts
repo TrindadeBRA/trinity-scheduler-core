@@ -51,21 +51,14 @@ export async function createProfessionalCredentials(
     },
   });
 
-  // Enviar credenciais por email (não bloqueia em caso de falha)
-  try {
-    console.log('[CREDENTIALS] Buscando shop para email de credenciais, shopId:', shopId);
-    const shop = await prisma.shop.findUnique({ where: { id: shopId }, select: { name: true } });
-    console.log('[CREDENTIALS] Shop encontrado:', shop?.name);
-    await sendProfessionalCredentials(email, {
-      name,
-      shopName: shop?.name || 'Trinity Scheduler',
-      loginEmail: email,
-      password,
-    });
-    console.log('[CREDENTIALS] Email de credenciais enviado com sucesso para:', email);
-  } catch (emailError) {
-    console.error('[CREDENTIALS] Falha ao enviar email de credenciais:', emailError);
-  }
+  // Enviar credenciais por email — falha bloqueia a criação
+  const shop = await prisma.shop.findUnique({ where: { id: shopId }, select: { name: true } });
+  await sendProfessionalCredentials(email, {
+    name,
+    shopName: shop?.name || 'Trinity Scheduler',
+    loginEmail: email,
+    password,
+  });
 
   return user;
 }

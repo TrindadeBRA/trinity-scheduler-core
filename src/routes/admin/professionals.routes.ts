@@ -245,13 +245,20 @@ router.post('/professionals', authorize('leader', 'admin'), async (req: Request,
 
     // Create user credentials if provided
     if (credentials?.email && credentials?.password) {
-      await createProfessionalCredentials({
-        professionalId: professional.id,
-        shopId,
-        name: professional.name,
-        email: credentials.email,
-        password: credentials.password,
-      });
+      try {
+        await createProfessionalCredentials({
+          professionalId: professional.id,
+          shopId,
+          name: professional.name,
+          email: credentials.email,
+          password: credentials.password,
+        });
+      } catch (credErr) {
+        // Rollback: remove o profissional criado para não deixar registro órfão
+        await prisma.professional.delete({ where: { id: professional.id } });
+        if (credErr instanceof AppError) throw credErr;
+        throw new AppError(500, 'INTERNAL_ERROR', 'Falha ao enviar email de credenciais ao profissional');
+      }
     }
 
     res.status(201).json(professional);
