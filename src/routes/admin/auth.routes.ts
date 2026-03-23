@@ -6,7 +6,8 @@ import { signToken } from '../../utils/jwt';
 import { AppError } from '../../utils/errors';
 import { generateSlug, sanitizeSlug, validateSlug } from '../../utils/slug';
 import { authMiddleware } from '../../middlewares/auth';
-import { sendWelcomeLeader } from '../../utils/email';
+import { sendWelcomeLeader, sendPasswordResetEmail } from '../../utils/email';
+import { env } from '../../config/env';
 
 const router = Router();
 
@@ -304,10 +305,81 @@ router.post('/forgot-password', async (req: Request, res: Response, next: NextFu
         where: { id: user.id },
         data: { resetToken, resetTokenExp },
       });
+
+      sendPasswordResetEmail(user.email, {
+        name: user.name,
+        resetUrl: `${env.ADMIN_URL}/reset-password?token=${resetToken}`,
+      }).catch((err) => console.error('[FORGOT-PASSWORD] Falha ao enviar email:', err));
     }
 
     // Sempre retorna 200 para não vazar informação sobre emails cadastrados
     res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções em breve' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @swagger
+ * /admin/auth/reset-password:
+ *   post:
+ *     tags: [Admin Auth]
+ *     summary: Redefinir senha com token
+ *     description: Valida o token de redefinição, verifica complexidade da senha e atualiza o passwordHash. Limpa o token após uso.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, password]
+ *             properties:
+ *               token:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Senha redefinida com sucesso
+ *       400:
+ *         description: Token inválido/expirado ou senha fraca
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/reset-password', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Token e senha são obrigatórios');
+    }
+
+    const user = await prisma.user.findFirst({ where: { resetToken: token } });
+
+    if (!user || !user.resetTokenExp || user.resetTokenExp <= new Date()) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Token inválido ou expirado');
+    }
+
+    const hasLower = /[a-z]/.test(password);
+    const hasUpper = /[A-Z]/.test(password);
+    const hasDigit = /\d/.test(password);
+    const hasSpecial = /[^\w\s]/.test(password);
+    const hasLength = password.length >= 8;
+
+    if (!hasLower || !hasUpper || !hasDigit || !hasSpecial || !hasLength) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'A senha não atende todos os requisitos');
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, resetToken: null, resetTokenExp: null },
+    });
+
+    res.json({ message: 'Senha redefinida com sucesso' });
   } catch (err) {
     next(err);
   }
