@@ -52,10 +52,11 @@ export async function createProfessionalCredentials(
   });
 
   // Enviar credenciais por email — falha bloqueia a criação
-  const shop = await prisma.shop.findUnique({ where: { id: shopId }, select: { name: true } });
+  const shop = await prisma.shop.findUnique({ where: { id: shopId }, select: { name: true, niche: true } });
   await sendProfessionalCredentials(email, {
     name,
     shopName: shop?.name || 'Trinity Scheduler',
+    niche: shop?.niche || 'barbearia',
     loginEmail: email,
     password,
   });

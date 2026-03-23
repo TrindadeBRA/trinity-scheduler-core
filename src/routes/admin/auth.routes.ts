@@ -6,6 +6,7 @@ import { signToken } from '../../utils/jwt';
 import { AppError } from '../../utils/errors';
 import { generateSlug, sanitizeSlug, validateSlug } from '../../utils/slug';
 import { authMiddleware } from '../../middlewares/auth';
+import { sendWelcomeLeader } from '../../utils/email';
 
 const router = Router();
 
@@ -235,6 +236,15 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     res.status(201).json({
       message: 'Estabelecimento registrado com sucesso',
       shopId: result.shop.id,
+    });
+
+    // Envia email de boas-vindas ao leader (fire-and-forget — não bloqueia a resposta)
+    sendWelcomeLeader(owner.email, {
+      name: owner.name,
+      shopName: result.shop.name,
+      niche: result.shop.niche,
+    }).catch((err) => {
+      console.error('[REGISTER] Falha ao enviar email de boas-vindas:', err);
     });
   } catch (err) {
     next(err);
