@@ -210,6 +210,14 @@ router.post('/professionals', authorize('leader', 'admin'), async (req: Request,
 
     if (!name) throw new AppError(400, 'VALIDATION_ERROR', 'Campo name é obrigatório');
 
+    // Valida email de credenciais antes de criar qualquer coisa
+    if (credentials?.email) {
+      const existingUser = await prisma.user.findUnique({ where: { email: credentials.email } });
+      if (existingUser) {
+        throw new AppError(409, 'CONFLICT', 'Email já está em uso');
+      }
+    }
+
     const professional = await prisma.professional.create({
       data: {
         shopId,
@@ -236,7 +244,7 @@ router.post('/professionals', authorize('leader', 'admin'), async (req: Request,
     });
 
     // Create user credentials if provided
-    if (credentials && credentials.email && credentials.password) {
+    if (credentials?.email && credentials?.password) {
       await createProfessionalCredentials({
         professionalId: professional.id,
         shopId,
