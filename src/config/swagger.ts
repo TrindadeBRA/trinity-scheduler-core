@@ -77,6 +77,9 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
       { name: 'Admin Upload', description: 'Upload de imagens (presigned URL)' },
       { name: 'Admin Revenue', description: 'Faturamento e relatórios financeiros' },
       { name: 'Client Shop', description: 'Informações públicas do estabelecimento' },
+      { name: 'Client Units', description: 'Resolução de slug para shopId/unitId' },
+      { name: 'Public', description: 'Endpoints públicos sem autenticação' },
+      { name: 'Admin - System', description: 'Utilitários do sistema (apenas admin)' },
     ],
     components: {
       securitySchemes: {
@@ -121,6 +124,10 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
             phone: { type: 'string', nullable: true },
             email: { type: 'string', nullable: true },
             address: { type: 'string', nullable: true },
+            niche: { type: 'string', enum: ['barbearia', 'salao-beleza'], example: 'barbearia' },
+            bookingBuffer: { type: 'integer', description: 'Minutos de antecedência mínima para agendamento', example: 0 },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
           },
         },
         ShopHour: {
@@ -202,7 +209,8 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
           properties: {
             id: { type: 'string', format: 'uuid' },
             shopId: { type: 'string', format: 'uuid' },
-            unitId: { type: 'string', format: 'uuid', nullable: true },
+            unitId: { type: 'string', format: 'uuid', nullable: true, description: 'Unidade principal (legado)' },
+            unitIds: { type: 'array', items: { type: 'string', format: 'uuid' }, description: 'IDs de todas as unidades alocadas' },
             name: { type: 'string' },
             avatar: { type: 'string', nullable: true },
             specialties: { type: 'array', items: { type: 'string' } },
@@ -224,6 +232,14 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
             email: { type: 'string' },
             active: { type: 'boolean' },
             workingHours: { type: 'array', items: { $ref: '#/components/schemas/WorkingHour' } },
+            credentials: {
+              type: 'object',
+              description: 'Credenciais de acesso ao painel admin (opcional)',
+              properties: {
+                email: { type: 'string', format: 'email' },
+                password: { type: 'string' },
+              },
+            },
           },
         },
         Appointment: {
@@ -241,7 +257,7 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
             time: { type: 'string', example: '09:00' },
             duration: { type: 'integer', description: 'Duração em minutos' },
             price: { type: 'integer', description: 'Preço em centavos' },
-            status: { type: 'string', enum: ['confirmed', 'cancelled', 'completed', 'noshow'] },
+            status: { type: 'string', enum: ['pending', 'confirmed', 'cancelled', 'completed', 'no_show'] },
             cancelReason: { type: 'string', nullable: true },
             notes: { type: 'string', nullable: true },
             createdAt: { type: 'string', format: 'date-time' },
@@ -267,6 +283,7 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
             id: { type: 'string', format: 'uuid' },
             shopId: { type: 'string', format: 'uuid' },
             name: { type: 'string' },
+            slug: { type: 'string', description: 'Identificador único para URL de agendamento', example: 'barbearia-centro' },
             address: { type: 'string', nullable: true },
             phone: { type: 'string', nullable: true },
           },
@@ -306,7 +323,7 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
         AppointmentUpdateInput: {
           type: 'object',
           properties: {
-            status: { type: 'string', enum: ['confirmed', 'cancelled', 'completed', 'noshow'] },
+            status: { type: 'string', enum: ['pending', 'confirmed', 'cancelled', 'completed', 'no_show'] },
             notes: { type: 'string' },
             cancelReason: { type: 'string' },
             date: { type: 'string', example: '2024-12-25' },
@@ -407,6 +424,7 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
               properties: {
                 name: { type: 'string' },
                 email: { type: 'string', format: 'email' },
+                phone: { type: 'string' },
                 password: { type: 'string' },
               },
             },
@@ -418,6 +436,8 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
                 phone: { type: 'string' },
                 email: { type: 'string' },
                 address: { type: 'string' },
+                niche: { type: 'string', enum: ['barbearia', 'salao-beleza'], default: 'barbearia' },
+                slug: { type: 'string', description: 'Slug da primeira unidade (gerado automaticamente se omitido)', example: 'barbearia-centro' },
               },
             },
             professional: {
@@ -427,6 +447,7 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
                 name: { type: 'string' },
                 avatar: { type: 'string' },
                 specialties: { type: 'array', items: { type: 'string' } },
+                isOwner: { type: 'boolean', description: 'Se true, usa os dados do owner como profissional' },
               },
             },
           },

@@ -27,6 +27,7 @@ import adminUnitsRouter from './admin/units.routes';
 import adminDashboardRouter from './admin/dashboard.routes';
 import adminRevenueRouter from './admin/revenue.routes';
 import adminUploadRouter from './admin/upload.routes';
+import adminSystemRouter from './admin/system.routes';
 
 export function mountRoutes(app: Express): void {
   // ─── Public routes (no authentication required) ──────────────────────────
@@ -57,4 +58,5 @@ export function mountRoutes(app: Express): void {
   app.use('/admin', authMiddleware, tenantFilter, adminDashboardRouter);
   app.use('/admin', authMiddleware, tenantFilter, adminRevenueRouter);
   app.use('/admin', authMiddleware, tenantFilter, adminUploadRouter);
+  app.use('/admin/system', adminSystemRouter);
 }

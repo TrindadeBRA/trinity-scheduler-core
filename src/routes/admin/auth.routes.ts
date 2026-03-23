@@ -303,6 +303,40 @@ router.post('/forgot-password', async (req: Request, res: Response, next: NextFu
   }
 });
 
+/**
+ * @swagger
+ * /admin/auth/me:
+ *   get:
+ *     tags: [Admin Auth]
+ *     summary: Obter dados do usuário autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dados do usuário
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 phone:
+ *                   type: string
+ *                   nullable: true
+ *                 role:
+ *                   type: string
+ *                   enum: [admin, leader, professional]
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 router.get('/me', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = await prisma.user.findUnique({
@@ -326,6 +360,57 @@ router.get('/me', authMiddleware, async (req: Request, res: Response, next: Next
   }
 });
 
+/**
+ * @swagger
+ * /admin/auth/profile:
+ *   patch:
+ *     tags: [Admin Auth]
+ *     summary: Atualizar perfil do usuário autenticado
+ *     description: Atualiza nome, telefone e/ou senha. Senha deve ter mínimo 8 caracteres com maiúscula, minúscula, número e caractere especial.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *               phone:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *                 description: Mínimo 8 caracteres, com maiúscula, minúscula, número e caractere especial
+ *     responses:
+ *       200:
+ *         description: Perfil atualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 phone:
+ *                   type: string
+ *                   nullable: true
+ *                 role:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/schemas/Error'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 router.patch('/profile', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, phone, newPassword } = req.body;
