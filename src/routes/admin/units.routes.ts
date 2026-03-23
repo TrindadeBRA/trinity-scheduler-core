@@ -74,6 +74,26 @@ router.get('/units', authorize('leader', 'professional', 'admin'), async (req: R
     const where: Record<string, unknown> = {};
     if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
 
+    // Professional só vê as unidades às quais está vinculado
+    if (req.user?.role === 'professional' && req.user.professionalId) {
+      const allocations = await prisma.professionalUnit.findMany({
+        where: { professionalId: req.user.professionalId },
+        select: { unitId: true },
+      });
+      const unitIds = allocations.map((a) => a.unitId);
+
+      // Inclui também o unitId legado do profissional
+      const professional = await prisma.professional.findUnique({
+        where: { id: req.user.professionalId },
+        select: { unitId: true },
+      });
+      if (professional?.unitId && !unitIds.includes(professional.unitId)) {
+        unitIds.push(professional.unitId);
+      }
+
+      where.id = { in: unitIds };
+    }
+
     if (search) {
       where.OR = [
         { name: { contains: search as string, mode: 'insensitive' } },
