@@ -8,7 +8,11 @@
         "postgresql://trinity:trinity123@localhost:5432/trinity_scheduler"
       ],
       "disabled": false,
-      "autoApprove": []
+      "autoApprove": [
+        "list_tables",
+        "connect_db",
+        "query"
+      ]
     }
   }
 }

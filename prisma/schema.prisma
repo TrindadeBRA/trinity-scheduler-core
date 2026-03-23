@@ -184,14 +184,20 @@ enum AppointmentStatus {
 }
 
 model Unit {
-  id        String   @id @default(uuid())
-  shopId    String
-  name      String
-  slug      String   @unique
-  address   String?
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  shopId     String
+  name       String
+  slug       String   @unique
+  phone      String?
+  zipcode    String?
+  street     String?
+  number     String?
+  complement String?
+  district   String?
+  city       String?
+  state      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   shop              Shop               @relation(fields: [shopId], references: [id])
   professionals     Professional[]

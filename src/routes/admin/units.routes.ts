@@ -97,7 +97,9 @@ router.get('/units', authorize('leader', 'professional', 'admin'), async (req: R
     if (search) {
       where.OR = [
         { name: { contains: search as string, mode: 'insensitive' } },
-        { address: { contains: search as string, mode: 'insensitive' } },
+        { street: { contains: search as string, mode: 'insensitive' } },
+        { city: { contains: search as string, mode: 'insensitive' } },
+        { district: { contains: search as string, mode: 'insensitive' } },
         { phone: { contains: search as string, mode: 'insensitive' } },
       ];
     }
@@ -208,7 +210,7 @@ router.post('/units', authorize('leader', 'admin'), async (req: Request, res: Re
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
 
-    const { name, address, phone, slug } = req.body;
+    const { name, phone, slug, zipcode, street, number, complement, district, city, state } = req.body;
     if (!name) throw new AppError(400, 'VALIDATION_ERROR', 'Campo name é obrigatório');
 
     // Sanitiza e valida slug se fornecido, ou gera automaticamente
@@ -233,8 +235,14 @@ router.post('/units', authorize('leader', 'admin'), async (req: Request, res: Re
         shopId, 
         name, 
         slug: finalSlug,
-        address: address || null, 
-        phone: phone || null 
+        phone: phone || null,
+        zipcode: zipcode || null,
+        street: street || null,
+        number: number || null,
+        complement: complement || null,
+        district: district || null,
+        city: city || null,
+        state: state || null,
       },
     });
 
@@ -304,7 +312,7 @@ router.put('/units/:id', authorize('leader', 'admin'), async (req: Request, res:
     const existing = await prisma.unit.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Unidade não encontrada');
 
-    const { name, address, phone, slug } = req.body;
+    const { name, phone, slug, zipcode, street, number, complement, district, city, state } = req.body;
 
     // Se slug foi fornecido, sanitiza e valida
     if (slug !== undefined) {
@@ -333,8 +341,14 @@ router.put('/units/:id', authorize('leader', 'admin'), async (req: Request, res:
       data: {
         ...(name !== undefined && { name }),
         ...(slug !== undefined && { slug: sanitizeSlug(slug) }),
-        ...(address !== undefined && { address }),
         ...(phone !== undefined && { phone }),
+        ...(zipcode !== undefined && { zipcode }),
+        ...(street !== undefined && { street }),
+        ...(number !== undefined && { number }),
+        ...(complement !== undefined && { complement }),
+        ...(district !== undefined && { district }),
+        ...(city !== undefined && { city }),
+        ...(state !== undefined && { state }),
       },
     });
 

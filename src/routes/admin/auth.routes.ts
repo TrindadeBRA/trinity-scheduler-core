@@ -196,8 +196,14 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
           shopId: newShop.id,
           name: newShop.name,
           slug: unitSlug,
-          address: newShop.address,
-          phone: newShop.phone,
+          phone: shop.phone || null,
+          zipcode: shop.zipcode || null,
+          street: shop.street || null,
+          number: shop.number || null,
+          complement: shop.complement || null,
+          district: shop.district || null,
+          city: shop.city || null,
+          state: shop.state || null,
         },
       });
 
