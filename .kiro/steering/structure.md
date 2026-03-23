@@ -4,186 +4,256 @@
 
 ```
 trinity-scheduler-core/
-├── src/                    # Source code
-├── prisma/                 # Prisma schema and migrations
-├── dist/                   # Compiled JavaScript output
-├── docs/                   # Documentation
-├── .kiro/                  # Kiro configuration and specs
-├── docker-compose.yml      # PostgreSQL container setup
-└── node_modules/           # Dependencies
+├── src/                    # Código fonte
+├── prisma/                 # Schema e migrations do Prisma
+├── dist/                   # JavaScript compilado
+├── docs/                   # Documentação
+├── scripts/                # Scripts de migração de dados
+├── .kiro/                  # Configuração Kiro (specs, steering)
+├── docker-compose.yml      # Setup do container PostgreSQL
+└── node_modules/           # Dependências
 ```
 
 ## Source Directory (`src/`)
 
 ```
 src/
-├── routes/                 # API route handlers
-│   ├── admin/             # Admin panel routes (/admin/*)
-│   │   ├── auth.routes.ts           # Login, register, password reset
-│   │   ├── appointments.routes.ts   # Appointment CRUD
-│   │   ├── clients.routes.ts        # Client management
-│   │   ├── professionals.routes.ts  # Professional/staff management
-│   │   ├── services.routes.ts       # Service catalog management
-│   │   ├── units.routes.ts          # Unit management
-│   │   ├── dashboard.routes.ts      # Dashboard statistics
-│   │   ├── revenue.routes.ts        # Revenue reports
-│   │   ├── shop.routes.ts           # Shop configuration
-│   │   ├── upload.routes.ts         # File upload (presigned URLs)
-│   │   ├── system.routes.ts         # System utilities
-│   │   └── __tests__/               # Route tests
-│   ├── client/            # Client app routes (/client/*)
-│   │   ├── auth.routes.ts           # Phone-based authentication
-│   │   ├── appointments.routes.ts   # Appointment creation/cancellation
-│   │   ├── services.routes.ts       # Service listing
-│   │   ├── addons.routes.ts         # Addon services
-│   │   ├── professionals.routes.ts  # Professional listing
-│   │   ├── availability.routes.ts   # Available time slots
-│   │   ├── shop.routes.ts           # Shop information
-│   │   └── units.routes.ts          # Unit listing
-│   ├── public.routes.ts   # Public routes (health check, etc.)
-│   └── index.ts           # Route mounting and registration
-├── services/              # Business logic services
-│   ├── appointment.service.ts   # Appointment business logic
-│   ├── availability.service.ts  # Availability calculation
-│   └── cron.service.ts          # Scheduled jobs (reminders, cleanup)
-├── middlewares/           # Express middlewares
-│   ├── auth.ts           # JWT authentication and token verification
-│   ├── authorize.ts      # Role-based authorization (admin, leader, professional)
-│   ├── shopResolver.ts   # Multi-tenant shop resolution from headers
-│   ├── tenantFilter.ts   # Automatic tenant data isolation for Prisma
-│   └── errorHandler.ts   # Global error handling and formatting
-├── utils/                 # Utility functions
-│   ├── prisma.ts         # Prisma client singleton instance
-│   ├── jwt.ts            # JWT token generation and verification
-│   ├── password.ts       # Password hashing and comparison (bcrypt)
-│   ├── errors.ts         # Custom error classes (AppError)
-│   ├── pagination.ts     # Pagination helpers and metadata
-│   ├── r2.ts             # Cloudflare R2/S3 client and presigned URLs
-│   ├── slug.ts           # URL slug generation and validation
-│   └── slug.test.ts      # Slug utility tests
-├── config/                # Configuration
-│   ├── env.ts            # Environment variable validation and export
-│   ├── constants.ts      # Application constants (roles, statuses, etc.)
-│   └── swagger.ts        # Swagger/OpenAPI configuration
-├── types/                 # TypeScript type definitions
-│   └── express.d.ts      # Express request extensions (shopId, userId, role)
-├── app.ts                 # Express app setup (middlewares, routes, error handling)
-└── index.ts               # Application entry point (server start, cron init)
+├── routes/                 # Route handlers da API
+│   ├── admin/             # Rotas do painel admin (/admin/*)
+│   │   ├── auth.routes.ts           # Login, register, forgot/reset-password, me, profile
+│   │   ├── appointments.routes.ts   # CRUD de agendamentos
+│   │   ├── clients.routes.ts        # CRUD de clientes
+│   │   ├── professionals.routes.ts  # CRUD de profissionais + alocação de unidades
+│   │   ├── services.routes.ts       # CRUD de serviços e adicionais
+│   │   ├── units.routes.ts          # CRUD de unidades + gestão de slugs
+│   │   ├── dashboard.routes.ts      # Stats, weekly-revenue, weekly-cancelled
+│   │   ├── revenue.routes.ts        # Revenue summary com filtros
+│   │   ├── shop.routes.ts           # Shop info, shop hours, niches
+│   │   ├── upload.routes.ts         # Presigned URL para upload S3/R2
+│   │   ├── system.routes.ts         # Utilitários do sistema (apenas admin)
+│   │   └── __tests__/               # Testes de rotas
+│   ├── client/            # Rotas da app cliente
+│   │   ├── auth.routes.ts           # Login por telefone, validate, patch name
+│   │   ├── appointments.routes.ts   # Criar, listar, cancelar agendamentos
+│   │   ├── services.routes.ts       # Listar serviços (type=service, active=true)
+│   │   ├── addons.routes.ts         # Listar adicionais (type=addon, active=true)
+│   │   ├── professionals.routes.ts  # Listar profissionais ativos
+│   │   ├── availability.routes.ts   # Slots disponíveis e datas desabilitadas
+│   │   ├── shop.routes.ts           # Info pública do estabelecimento
+│   │   └── units.routes.ts          # Resolver slug → shopId/unitId
+│   ├── public.routes.ts   # Rotas públicas (/public/niches)
+│   └── index.ts           # Montagem e registro de todas as rotas
+├── services/              # Serviços de lógica de negócio
+│   ├── appointment.service.ts       # createAppointment, cancelAppointment, completeAppointment
+│   ├── availability.service.ts      # getAvailableSlots, getDisabledDates
+│   ├── cron.service.ts              # Jobs agendados (completar agendamentos passados)
+│   ├── logging.service.ts           # Log de tentativas de acesso negado
+│   └── professionalCredentials.service.ts  # Criar/atualizar credenciais de profissionais
+├── middlewares/           # Middlewares Express
+│   ├── auth.ts           # Verificação JWT, extrai userId/shopId/role
+│   ├── authorize.ts      # Autorização por role + logging de acesso negado
+│   ├── shopResolver.ts   # Extrai shopId do header X-Shop-Id
+│   ├── tenantFilter.ts   # Injeta shopId em query/body/req.shopId
+│   └── errorHandler.ts   # Tratamento global de erros
+├── utils/                 # Funções utilitárias
+│   ├── prisma.ts         # Singleton do Prisma Client
+│   ├── jwt.ts            # signToken, verifyToken
+│   ├── password.ts       # hashPassword, comparePassword (bcrypt)
+│   ├── errors.ts         # Classe AppError(statusCode, code, message)
+│   ├── pagination.ts     # parsePagination, createPaginatedResponse
+│   ├── r2.ts             # Cliente S3/R2 e geração de presigned URLs
+│   ├── slug.ts           # generateSlug, sanitizeSlug, validateSlug
+│   ├── slug.test.ts      # Testes unitários do slug
+│   ├── email.ts          # sendWelcomeLeader, sendPasswordResetEmail (nodemailer)
+│   └── dataFilter.ts     # applyProfessionalFilter (filtro RBAC para queries)
+├── config/                # Configuração
+│   ├── env.ts            # Validação e exportação de variáveis de ambiente
+│   ├── constants.ts      # SHOP_TIMEZONE = 'America/Sao_Paulo'
+│   └── swagger.ts        # Configuração OpenAPI 3.0 (schemas + tags)
+├── types/                 # Definições TypeScript
+│   └── express.d.ts      # Extensões do Request Express (shopId, userId, role, user)
+├── app.ts                 # Setup do Express (cors, json, swagger, routes, errorHandler)
+└── index.ts               # Entry point (listen + initCronJobs)
 ```
+
+## Endpoints Completos
+
+### Admin Routes (`/admin/*`)
+
+| Método | Endpoint | Roles | Descrição |
+|--------|----------|-------|-----------|
+| POST | `/admin/auth/login` | público | Login com email/senha |
+| POST | `/admin/auth/register` | público | Registrar novo estabelecimento |
+| POST | `/admin/auth/forgot-password` | público | Solicitar reset de senha |
+| POST | `/admin/auth/reset-password` | público | Redefinir senha com token |
+| GET | `/admin/auth/me` | auth | Dados do usuário autenticado |
+| PATCH | `/admin/auth/profile` | auth | Atualizar nome, telefone, senha |
+| GET | `/admin/shop` | auth | Dados do estabelecimento |
+| PUT | `/admin/shop` | leader, admin | Atualizar estabelecimento |
+| GET | `/admin/shop/hours` | auth | Horários de funcionamento |
+| PUT | `/admin/shop/hours` | leader, admin | Atualizar horários |
+| GET | `/admin/shop/niches` | auth | Listar nichos disponíveis |
+| GET | `/admin/appointments` | leader, professional, admin | Listar agendamentos (paginado) |
+| GET | `/admin/appointments/:id` | leader, professional, admin | Obter agendamento |
+| POST | `/admin/appointments` | leader, admin | Criar agendamento |
+| PUT | `/admin/appointments/:id` | leader, admin | Atualizar agendamento |
+| DELETE | `/admin/appointments/:id` | leader, admin | Excluir agendamento |
+| GET | `/admin/clients` | leader, professional, admin | Listar clientes (paginado) |
+| GET | `/admin/clients/:id` | leader, professional, admin | Obter cliente |
+| POST | `/admin/clients` | leader, admin | Criar cliente |
+| PUT | `/admin/clients/:id` | leader, admin | Atualizar cliente |
+| DELETE | `/admin/clients/:id` | leader, admin | Excluir cliente |
+| GET | `/admin/services` | leader, professional, admin | Listar serviços (paginado) |
+| GET | `/admin/services/:id` | leader, professional, admin | Obter serviço |
+| POST | `/admin/services` | leader, admin | Criar serviço |
+| PUT | `/admin/services/:id` | leader, admin | Atualizar serviço |
+| DELETE | `/admin/services/:id` | leader, admin | Excluir serviço |
+| GET | `/admin/professionals` | leader, professional, admin | Listar profissionais (paginado) |
+| GET | `/admin/professionals/:id` | leader, professional, admin | Obter profissional |
+| POST | `/admin/professionals` | leader, admin | Criar profissional |
+| PUT | `/admin/professionals/:id` | leader, professional, admin | Atualizar profissional |
+| DELETE | `/admin/professionals/:id` | leader, admin | Soft delete profissional |
+| GET | `/admin/professionals/:id/units` | leader, professional, admin | Listar unidades do profissional |
+| PUT | `/admin/professionals/:id/units` | leader, admin | Atualizar alocação de unidades |
+| GET | `/admin/units` | leader, professional, admin | Listar unidades (paginado) |
+| GET | `/admin/units/:id` | leader, professional, admin | Obter unidade |
+| POST | `/admin/units` | leader, admin | Criar unidade |
+| PUT | `/admin/units/:id` | leader, admin | Atualizar unidade |
+| DELETE | `/admin/units/:id` | leader, admin | Excluir unidade |
+| GET | `/admin/dashboard/stats` | leader, professional, admin | Estatísticas do dia |
+| GET | `/admin/dashboard/weekly-revenue` | leader, professional, admin | Faturamento semanal |
+| GET | `/admin/dashboard/weekly-cancelled` | leader, professional, admin | Cancelamentos semanais |
+| GET | `/admin/revenue/summary` | leader, professional, admin | Resumo de faturamento |
+| POST | `/admin/upload/presign` | leader, admin | Gerar presigned URL para upload |
+| POST | `/admin/system/complete-past-appointments` | admin | Completar agendamentos passados |
+
+### Client Routes
+
+| Método | Endpoint | Auth | Descrição |
+|--------|----------|------|-----------|
+| POST | `/auth/login` | X-Shop-Id | Login por telefone (upsert cliente) |
+| GET | `/auth/validate` | X-Shop-Id | Validar clientId existente |
+| PATCH | `/auth/name` | X-Shop-Id | Atualizar nome do cliente |
+| GET | `/services` | X-Shop-Id | Listar serviços ativos |
+| GET | `/addons` | X-Shop-Id | Listar adicionais ativos |
+| GET | `/professionals` | X-Shop-Id | Listar profissionais ativos |
+| GET | `/availability/slots` | X-Shop-Id | Slots disponíveis por data |
+| GET | `/availability/disabled-dates` | X-Shop-Id | Datas sem disponibilidade |
+| POST | `/appointments` | X-Shop-Id | Criar agendamento |
+| GET | `/appointments` | X-Shop-Id | Listar agendamentos do cliente |
+| PATCH | `/appointments/:id/cancel` | X-Shop-Id | Cancelar agendamento |
+| GET | `/client/shop/info` | X-Shop-Id | Info pública do estabelecimento |
+| GET | `/client/units/resolve/:slug` | público | Resolver slug → shopId/unitId |
+
+### Public Routes
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/public/niches` | Listar nichos disponíveis |
+
+## Database Schema (Prisma)
+
+### Modelos
+
+| Modelo | Campos principais | Relacionamentos |
+|--------|-------------------|-----------------|
+| `Shop` | id, name, phone, email, address, niche, bookingBuffer | → Users, Services, Professionals, Clients, Units, Appointments, ShopHours |
+| `User` | id, shopId, name, email, passwordHash, role, professionalId, resetToken | → Shop, Professional |
+| `ShopHour` | id, shopId, day, start?, end? | → Shop |
+| `Service` | id, shopId, name, duration, price, description, icon, image, type, active | → Shop, Appointments |
+| `Professional` | id, shopId, unitId?, name, avatar, specialties[], phone, email, active, deletedAt | → Shop, Unit, WorkingHours, Appointments, User, ProfessionalUnits |
+| `WorkingHour` | id, professionalId, day, start?, end?, lunchStart?, lunchEnd? | → Professional |
+| `Client` | id, shopId, name?, phone, email, notes, birthday, totalSpent, lastVisit | → Shop, Appointments |
+| `Appointment` | id, shopId, unitId?, clientId, serviceId, professionalId, date, time, duration, price, status, cancelReason, notes | → Shop, Unit, Client, Service, Professional, AppointmentAddons |
+| `AppointmentAddon` | id, appointmentId, serviceId, name, duration, price | → Appointment |
+| `Unit` | id, shopId, name, slug (unique), address?, phone? | → Shop, Professionals, ProfessionalUnits, Appointments |
+| `ProfessionalUnit` | id, professionalId, unitId | → Professional, Unit |
+
+### Enums
+
+```typescript
+enum Role { admin, leader, professional }
+enum ServiceType { service, addon }
+enum AppointmentStatus { confirmed, cancelled, completed, noshow }
+```
+
+> **Atenção**: O status `noshow` no banco é `noshow` (sem underscore), não `no_show`. O schema Swagger documenta incorretamente como `no_show`.
 
 ## Key Conventions
 
 ### Route Organization
 
-Routes are separated by consumer:
-- **Admin Routes** (`/admin/*`): Require JWT authentication, full CRUD operations
-- **Client Routes** (`/client/*`): Require `X-Shop-Id` header, read-heavy operations
-
-### Service Layer
-
-Business logic is extracted into services in `src/services/`:
-- Named as `{entity}.service.ts` (e.g., `appointment.service.ts`)
-- Handle complex operations, calculations, and business rules
-- Called by route handlers
+- **Admin Routes** (`/admin/*`): Requerem JWT, operações CRUD completas
+- **Client Routes**: Requerem `X-Shop-Id` header, operações de leitura e agendamento
+- **Public Routes** (`/public/*`): Sem autenticação
 
 ### Middleware Chain
 
-Typical middleware flow for requests:
-
-**Admin Routes:**
-1. `cors()` - CORS handling with allowed origins
-2. `express.json()` - Body parsing
-3. `authMiddleware` - Verify JWT token, extract userId, shopId, role
-4. `authorize([roles])` - Check user role (admin, leader, professional)
-5. `tenantFilter` - Apply tenant isolation to Prisma queries
-6. Route handler - Execute business logic
-7. `errorHandler` - Global error handling and response formatting
+**Admin Routes (protegidas):**
+1. `cors()` → `express.json()`
+2. `authMiddleware` — verifica JWT, extrai userId/shopId/role/professionalId
+3. `tenantFilter` — injeta shopId em query/body/req.shopId (admin bypassa)
+4. `authorize([roles])` — verifica role
+5. Route handler
+6. `errorHandler`
 
 **Client Routes:**
-1. `cors()` - CORS handling
-2. `express.json()` - Body parsing
-3. `shopResolver` - Extract and validate shopId from `X-Shop-Id` header
-4. `tenantFilter` - Apply tenant isolation to Prisma queries
-5. Route handler - Execute business logic
-6. `errorHandler` - Global error handling
+1. `cors()` → `express.json()`
+2. `shopResolver` — extrai shopId do header `X-Shop-Id`
+3. `tenantFilter` — injeta shopId
+4. Route handler
+5. `errorHandler`
 
-**Public Routes:**
-1. `cors()` - CORS handling
-2. `express.json()` - Body parsing
-3. Route handler - Execute business logic
-4. `errorHandler` - Global error handling
+**Admin Auth Routes** (`/admin/auth/*`): sem authMiddleware (públicas)
 
-### Database Access
+### Service Layer
 
-- Use `prisma` instance from `utils/prisma.ts`
-- Always filter by `shopId` for multi-tenant isolation
-- Use `tenantFilter` middleware to automatically inject shopId filters
-- Prisma schema located in `prisma/schema.prisma`
+- `appointment.service.ts`: `createAppointment` (com auto-atribuição de profissional), `cancelAppointment`, `completeAppointment`
+- `availability.service.ts`: `getAvailableSlots`, `getDisabledDates` — calcula slots respeitando horários da loja, do profissional, almoço, agendamentos existentes e bookingBuffer
+- `cron.service.ts`: `initCronJobs` — completa agendamentos `confirmed` de dias anteriores
+- `logging.service.ts`: `logAccessDenied` — log estruturado de tentativas de acesso negado
+- `professionalCredentials.service.ts`: `createProfessionalCredentials`, `updateProfessionalCredentials`, `getProfessionalUser`
 
 ### Error Handling
 
-Use `AppError` class from `utils/errors.ts`:
 ```typescript
+throw new AppError(statusCode, code, message);
+// Exemplos:
+throw new AppError(400, 'VALIDATION_ERROR', 'Campo phone é obrigatório');
+throw new AppError(401, 'UNAUTHORIZED', 'Token inválido ou expirado');
+throw new AppError(403, 'FORBIDDEN', 'Sem permissão para este recurso');
 throw new AppError(404, 'NOT_FOUND', 'Recurso não encontrado');
+throw new AppError(409, 'CONFLICT', 'Horário não disponível');
 ```
 
-Error codes:
-- `400` - VALIDATION_ERROR
-- `401` - UNAUTHORIZED
-- `403` - FORBIDDEN
-- `404` - NOT_FOUND
-- `409` - CONFLICT
-- `500` - INTERNAL_ERROR
+### Slug System
 
-### Authentication & Authorization
-
-- **Admin**: JWT token in `Authorization: Bearer <token>` header
-  - Token contains: `{ userId, shopId, role }`
-  - Roles: `admin`, `leader`, `professional`
-- **Client**: `X-Shop-Id` header for tenant identification
-  - No authentication required for most read operations
-  - Phone-based auth for creating/managing appointments
-
-### File Upload
-
-- Uses AWS S3 SDK configured for Cloudflare R2
-- Presigned URLs for secure uploads
-- Public URLs for accessing uploaded files
-- Utility functions in `utils/r2.ts`
-
-### Scheduled Jobs
-
-Cron jobs defined in `services/cron.service.ts`:
-- Initialized on server start
-- Used for automated tasks (e.g., appointment reminders, cleanup)
-
-### API Documentation
-
-- Swagger annotations in route files using JSDoc comments
-- Swagger spec generated in `config/swagger.ts`
-- Accessible at `/api-docs` endpoint
-
-### Naming Conventions
-
-- **Routes**: `{entity}.routes.ts` (e.g., `appointments.routes.ts`)
-- **Services**: `{entity}.service.ts` (e.g., `appointment.service.ts`)
-- **Middlewares**: camelCase (e.g., `authMiddleware`, `shopResolver`)
-- **Utils**: camelCase (e.g., `verifyToken`, `hashPassword`)
-- **Types**: PascalCase for interfaces/types
+- `generateSlug(name)`: gera slug a partir do nome (lowercase, sem acentos, hífens)
+- `sanitizeSlug(slug)`: normaliza slug fornecido pelo usuário
+- `validateSlug(slug)`: valida formato e retorna `{ valid, error }`
+- Slugs são únicos globalmente (constraint `@unique` no Prisma)
+- Lookup case-insensitive: `{ slug: { equals: slug, mode: 'insensitive' } }`
 
 ### Multi-Tenancy Pattern
 
-1. Client sends `X-Shop-Id` header or JWT with shopId
-2. `shopResolver` middleware validates and attaches to `req.shopId`
-3. `tenantFilter` middleware ensures all Prisma queries filter by shopId
-4. Route handlers access `req.shopId` for tenant-specific operations
+1. Admin: JWT contém `shopId` → `tenantFilter` injeta em todas as queries
+2. Client: header `X-Shop-Id` → `shopResolver` valida → `tenantFilter` injeta
+3. Role `admin` bypassa o filtro de tenant (acesso cross-tenant)
+4. Handlers acessam `req.shopId` para operações tenant-specific
 
 ### Testing
 
-- **Unit Tests**: Co-located with source files (e.g., `slug.test.ts`, `units.routes.test.ts`)
-- **Property-Based Tests**: Using fast-check for correctness properties
-- **Test Framework**: Vitest v2.1 with Node.js test environment
-- **Test Commands**: 
-  - `yarn test` - Run all tests once
-  - Tests are located in `__tests__/` directories or co-located with source files
-- **Coverage**: Tests cover critical business logic, utilities, and route handlers
+- **Testes unitários**: Co-localizados com o código (ex: `slug.test.ts`)
+- **Testes de rotas**: Em `src/routes/admin/__tests__/`
+- **Property-Based Tests**: fast-check v3.23
+- **Framework**: Vitest v2.1 com ambiente Node.js
+- **HTTP Testing**: supertest v7.2
+- **Comando**: `yarn test` (vitest --run)
+
+### Naming Conventions
+
+- **Routes**: `{entity}.routes.ts`
+- **Services**: `{entity}.service.ts`
+- **Middlewares**: camelCase (`authMiddleware`, `shopResolver`)
+- **Utils**: camelCase (`verifyToken`, `hashPassword`)
+- **Types**: PascalCase para interfaces/types
