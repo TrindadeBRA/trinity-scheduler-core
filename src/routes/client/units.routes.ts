@@ -10,7 +10,7 @@ const router = Router();
  *   get:
  *     tags: [Client Units]
  *     summary: Resolve slug para obter shopId e unitId
- *     description: Endpoint público que não requer autenticação ou X-Shop-Id header. Resolve um slug de unidade para obter os IDs e nomes necessários.
+ *     description: Endpoint público que não requer autenticação ou X-Shop-Id header. Resolve um slug de unidade para obter os IDs, nomes e endereço.
  *     parameters:
  *       - in: path
  *         name: slug
@@ -41,11 +41,16 @@ const router = Router();
  *                 shopName:
  *                   type: string
  *                   description: Nome do estabelecimento
+ *                 address:
+ *                   type: string
+ *                   nullable: true
+ *                   description: Endereço completo formatado da unidade (rua, número, complemento, bairro, cidade - estado)
  *             example:
  *               unitId: "123e4567-e89b-12d3-a456-426614174000"
  *               shopId: "123e4567-e89b-12d3-a456-426614174001"
  *               unitName: "Trinity Barber - Centro"
  *               shopName: "Trinity Barber Shop"
+ *               address: "Rua das Flores, 123, Apto 1, Centro, São Paulo - SP"
  *       404:
  *         description: Slug não encontrado
  *         content:

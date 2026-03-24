@@ -10,7 +10,7 @@ const router = Router();
  *   get:
  *     tags: [Client Shop]
  *     summary: Obter informações públicas do estabelecimento
- *     description: Retorna o nome do estabelecimento. Se unitId for informado, retorna o nome da unidade.
+ *     description: Retorna o nome e nicho do estabelecimento. Se unitId for informado, retorna o nome, nicho e endereço formatado da unidade.
  *     parameters:
  *       - in: header
  *         name: X-Shop-Id
@@ -22,10 +22,10 @@ const router = Router();
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Se informado, retorna o nome da unidade em vez do estabelecimento
+ *         description: Se informado, retorna dados da unidade em vez do estabelecimento
  *     responses:
  *       200:
- *         description: Informações do estabelecimento
+ *         description: Informações do estabelecimento ou unidade
  *         content:
  *           application/json:
  *             schema:
@@ -33,6 +33,14 @@ const router = Router();
  *               properties:
  *                 name:
  *                   type: string
+ *                   description: Nome do estabelecimento ou unidade
+ *                 niche:
+ *                   type: string
+ *                   description: Nicho do estabelecimento (ex: barbearia, salao-beleza)
+ *                 address:
+ *                   type: string
+ *                   nullable: true
+ *                   description: Endereço completo formatado (apenas quando unitId fornecido)
  *       400:
  *         description: shopId não resolvido
  *         content:
