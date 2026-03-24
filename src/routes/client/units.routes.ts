@@ -79,17 +79,23 @@ router.get('/resolve/:slug', async (req: Request, res: Response, next: NextFunct
       }
     });
     
-    // Retorna 404 se slug não existir
     if (!unit) {
       throw new AppError(404, 'NOT_FOUND', 'Unidade não encontrada');
     }
-    
-    // Retorna unitId, shopId, unitName, shopName
+
+    const addressParts = [
+      unit.street && unit.number ? `${unit.street}, ${unit.number}` : unit.street,
+      unit.complement,
+      unit.district,
+      unit.city && unit.state ? `${unit.city} - ${unit.state}` : unit.city,
+    ].filter(Boolean);
+
     res.json({
       unitId: unit.id,
       shopId: unit.shopId,
       unitName: unit.name,
-      shopName: unit.shop.name
+      shopName: unit.shop.name,
+      address: addressParts.length > 0 ? addressParts.join(', ') : null,
     });
   } catch (err) {
     next(err);

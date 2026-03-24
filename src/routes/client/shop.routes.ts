@@ -52,12 +52,25 @@ router.get('/info', async (req: Request, res: Response, next: NextFunction) => {
     if (unitId) {
       const unit = await prisma.unit.findFirst({
         where: { id: unitId as string, shopId },
-        select: { name: true, shop: { select: { niche: true } } },
+        select: {
+          name: true,
+          street: true, number: true, complement: true,
+          district: true, city: true, state: true,
+          shop: { select: { niche: true } },
+        },
       });
       if (unit) {
-        return res.json({ 
+        const addressParts = [
+          unit.street && unit.number ? `${unit.street}, ${unit.number}` : unit.street,
+          unit.complement,
+          unit.district,
+          unit.city && unit.state ? `${unit.city} - ${unit.state}` : unit.city,
+        ].filter(Boolean);
+
+        return res.json({
           name: unit.name,
-          niche: unit.shop.niche 
+          niche: unit.shop.niche,
+          address: addressParts.length > 0 ? addressParts.join(', ') : null,
         });
       }
     }
