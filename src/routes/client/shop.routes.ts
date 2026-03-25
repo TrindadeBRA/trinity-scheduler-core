@@ -36,7 +36,7 @@ const router = Router();
  *                   description: Nome do estabelecimento ou unidade
  *                 niche:
  *                   type: string
- *                   description: Nicho do estabelecimento (ex: barbearia, salao-beleza)
+ *                   description: "Nicho do estabelecimento (ex: barbearia, salao-beleza)"
  *                 address:
  *                   type: string
  *                   nullable: true
