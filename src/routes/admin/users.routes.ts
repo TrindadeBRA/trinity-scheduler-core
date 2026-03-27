@@ -39,7 +39,7 @@ const router = Router();
  */
 router.get('/users', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { search, page, pageSize } = req.query;
+    const { search, page, pageSize, role: roleFilter } = req.query;
     const { skip, take, page: pageNum, pageSize: pageSizeNum } = parsePagination({
       page: page as string,
       pageSize: pageSize as string,
@@ -47,7 +47,13 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
 
     const searchTerm = (search as string | undefined)?.trim();
 
-    const where: Record<string, unknown> = { role: 'leader' };
+    // Por padrão lista leader e admin; permite filtrar por role específica
+    const allowedRoles = ['leader', 'admin'];
+    const roles = roleFilter && allowedRoles.includes(roleFilter as string)
+      ? [roleFilter as string]
+      : allowedRoles;
+
+    const where: Record<string, unknown> = { role: { in: roles } };
 
     if (searchTerm) {
       where.OR = [
@@ -67,6 +73,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
           id: true,
           name: true,
           email: true,
+          role: true,
           shopId: true,
           shop: { select: { id: true, name: true } },
         },
@@ -75,30 +82,33 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
     ]);
 
     // Busca profissionais de todos os shops de uma vez (evita N+1)
-    const shopIds = [...new Set(leaders.map((l) => l.shopId))];
+    // Apenas para leaders — admins não têm profissionais associados
+    const leaderShopIds = [...new Set(
+      leaders.filter(l => l.role === 'leader').map(l => l.shopId)
+    )];
 
-    const allProfessionals = shopIds.length > 0
+    const allProfessionals = leaderShopIds.length > 0
       ? await prisma.professional.findMany({
-          where: { shopId: { in: shopIds }, deletedAt: null },
+          where: { shopId: { in: leaderShopIds }, deletedAt: null },
           select: { id: true, shopId: true, name: true, email: true, phone: true, active: true },
           orderBy: { name: 'asc' },
         })
       : [];
 
-    // Agrupa profissionais por shopId
     const profsByShop = allProfessionals.reduce<Record<string, typeof allProfessionals>>((acc, p) => {
       if (!acc[p.shopId]) acc[p.shopId] = [];
       acc[p.shopId].push(p);
       return acc;
     }, {});
 
-    const data = leaders.map((leader) => {
-      const professionals = profsByShop[leader.shopId] ?? [];
+    const data = leaders.map((user) => {
+      const professionals = user.role === 'leader' ? (profsByShop[user.shopId] ?? []) : [];
       return {
-        id: leader.id,
-        name: leader.name,
-        email: leader.email,
-        shopName: leader.shop.name,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        shopName: user.shop.name,
         professionals,
         professionalsTotal: professionals.length,
       };
