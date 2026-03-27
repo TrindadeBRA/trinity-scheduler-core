@@ -2,27 +2,23 @@ import cron from 'node-cron';
 import { prisma } from '../utils/prisma';
 
 /**
- * Atualiza o status dos agendamentos de dias anteriores para 'completed'
+ * Atualiza o status dos agendamentos de dias anteriores para 'completed'.
+ * Exportada para permitir execução manual via endpoint admin.
  */
-async function completePastAppointments() {
-  try {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+export async function completePastAppointments(): Promise<{ count: number; beforeDate: string }> {
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
 
-    const result = await prisma.appointment.updateMany({
-      where: {
-        date: { lt: todayStr }, // Todos os dias anteriores a hoje
-        status: 'confirmed',
-      },
-      data: {
-        status: 'completed',
-      },
-    });
+  const result = await prisma.appointment.updateMany({
+    where: {
+      date: { lt: todayStr },
+      status: 'confirmed',
+    },
+    data: { status: 'completed' },
+  });
 
-    console.log(`[CRON] ${new Date().toISOString()} - ${result.count} agendamentos de dias anteriores marcados como concluídos`);
-  } catch (error) {
-    console.error('[CRON] Erro ao atualizar agendamentos:', error);
-  }
+  console.log(`[CRON] ${new Date().toISOString()} - ${result.count} agendamentos de dias anteriores marcados como concluídos`);
+  return { count: result.count, beforeDate: todayStr };
 }
 
 /**
@@ -30,7 +26,13 @@ async function completePastAppointments() {
  */
 export function initCronJobs() {
   // Executa todo dia às 00:00
-  cron.schedule('0 0 * * *', completePastAppointments, {
+  cron.schedule('0 0 * * *', async () => {
+    try {
+      await completePastAppointments();
+    } catch (error) {
+      console.error('[CRON] Erro ao atualizar agendamentos:', error);
+    }
+  }, {
     timezone: 'America/Sao_Paulo',
   });
 

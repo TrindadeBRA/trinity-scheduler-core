@@ -79,7 +79,7 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
       { name: 'Client Shop', description: 'Informações públicas do estabelecimento' },
       { name: 'Client Units', description: 'Resolução de slug para shopId/unitId' },
       { name: 'Public', description: 'Endpoints públicos sem autenticação' },
-      { name: 'Admin - System', description: 'Utilitários do sistema (apenas admin)' },
+      { name: 'Admin - System', description: 'Utilitários do sistema (apenas admin) — execução manual de rotinas automáticas' },
     ],
     components: {
       securitySchemes: {
