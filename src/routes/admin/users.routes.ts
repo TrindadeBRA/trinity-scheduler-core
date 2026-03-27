@@ -45,16 +45,15 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
       pageSize: pageSize as string,
     });
 
-    const searchTerm = search as string | undefined;
+    const searchTerm = (search as string | undefined)?.trim();
 
-    // Busca leaders com seus shops e profissionais
     const where: Record<string, unknown> = { role: 'leader' };
 
     if (searchTerm) {
       where.OR = [
         { name: { contains: searchTerm, mode: 'insensitive' } },
         { email: { contains: searchTerm, mode: 'insensitive' } },
-        { shop: { name: { contains: searchTerm, mode: 'insensitive' } } },
+        { shop: { is: { name: { contains: searchTerm, mode: 'insensitive' } } } },
       ];
     }
 
@@ -69,39 +68,41 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
           name: true,
           email: true,
           shopId: true,
-          shop: {
-            select: { name: true },
-          },
+          shop: { select: { id: true, name: true } },
         },
       }),
       prisma.user.count({ where }),
     ]);
 
-    // Para cada leader, busca os profissionais do shop
-    const data = await Promise.all(
-      leaders.map(async (leader) => {
-        const professionals = await prisma.professional.findMany({
-          where: { shopId: leader.shopId, deletedAt: null },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            active: true,
-          },
-          orderBy: { name: 'asc' },
-        });
+    // Busca profissionais de todos os shops de uma vez (evita N+1)
+    const shopIds = [...new Set(leaders.map((l) => l.shopId))];
 
-        return {
-          id: leader.id,
-          name: leader.name,
-          email: leader.email,
-          shopName: leader.shop.name,
-          professionals,
-          professionalsTotal: professionals.length,
-        };
-      })
-    );
+    const allProfessionals = shopIds.length > 0
+      ? await prisma.professional.findMany({
+          where: { shopId: { in: shopIds }, deletedAt: null },
+          select: { id: true, shopId: true, name: true, email: true, phone: true, active: true },
+          orderBy: { name: 'asc' },
+        })
+      : [];
+
+    // Agrupa profissionais por shopId
+    const profsByShop = allProfessionals.reduce<Record<string, typeof allProfessionals>>((acc, p) => {
+      if (!acc[p.shopId]) acc[p.shopId] = [];
+      acc[p.shopId].push(p);
+      return acc;
+    }, {});
+
+    const data = leaders.map((leader) => {
+      const professionals = profsByShop[leader.shopId] ?? [];
+      return {
+        id: leader.id,
+        name: leader.name,
+        email: leader.email,
+        shopName: leader.shop.name,
+        professionals,
+        professionalsTotal: professionals.length,
+      };
+    });
 
     res.json(createPaginatedResponse(data, total, pageNum, pageSizeNum));
   } catch (err) {
