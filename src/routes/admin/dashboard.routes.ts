@@ -55,7 +55,7 @@ router.get('/dashboard/stats', authorize('leader', 'professional', 'admin'), asy
     if (!date) throw new AppError(400, 'VALIDATION_ERROR', 'Query param date é obrigatório');
 
     const where: Record<string, unknown> = { date };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
     if (unitId) where.unitId = unitId;
 
     // Apply professional filter
@@ -113,7 +113,7 @@ router.get('/dashboard/stats', authorize('leader', 'professional', 'admin'), asy
       const newClientsWhere: Record<string, unknown> = {
         createdAt: { gte: dateStart, lte: dateEnd },
       };
-      if (shopId && req.user?.role !== 'admin') newClientsWhere.shopId = shopId;
+      if (shopId) newClientsWhere.shopId = shopId;
       newClients = await prisma.client.count({ where: newClientsWhere });
     }
 
@@ -178,7 +178,7 @@ router.get('/dashboard/weekly-revenue', authorize('leader', 'professional', 'adm
       date: { in: days },
       status: { in: ['confirmed', 'completed'] },
     };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
     if (unitId) where.unitId = unitId;
 
     // Apply professional filter
@@ -278,7 +278,7 @@ router.get('/dashboard/weekly-cancelled', authorize('leader', 'professional', 'a
       date: { in: days },
       status: 'cancelled',
     };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
     if (unitId) where.unitId = unitId;
 
     // Apply professional filter

@@ -78,7 +78,7 @@ router.get('/professionals', authorize('leader', 'professional', 'admin'), async
     const skip = (pageNum - 1) * perPageNum;
 
     const where: Record<string, unknown> = { deletedAt: null };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
     
     // Apply professional filter: professionals can only see their own record
     if (req.user?.role === 'professional' && req.user.professionalId) {
@@ -161,7 +161,7 @@ router.get('/professionals/:id', authorize('leader', 'professional', 'admin'), a
     }
 
     const where: Record<string, unknown> = { id, deletedAt: null };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const professional = await prisma.professional.findFirst({
       where,
@@ -314,7 +314,7 @@ router.put('/professionals/:id', authorize('leader', 'professional', 'admin'), a
     }
 
     const where: Record<string, unknown> = { id, deletedAt: null };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const existing = await prisma.professional.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Profissional não encontrado');
@@ -449,7 +449,7 @@ router.put('/professionals/:id/units', authorize('leader', 'admin'), async (req:
 
     const shopId = req.shopId || req.user?.shopId;
     const where: Record<string, unknown> = { id, deletedAt: null };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const existing = await prisma.professional.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Profissional não encontrado');
@@ -511,7 +511,7 @@ router.delete('/professionals/:id', authorize('leader', 'admin'), async (req: Re
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id, deletedAt: null };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const existing = await prisma.professional.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Profissional não encontrado');

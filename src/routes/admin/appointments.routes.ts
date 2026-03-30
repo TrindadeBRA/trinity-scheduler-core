@@ -104,7 +104,7 @@ router.get('/appointments', authorize('leader', 'professional', 'admin'), async 
       : (professionalId as string | undefined);
 
     const where: Record<string, unknown> = {};
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
     if (date) where.date = date;
     if (effectiveProfessionalId) where.professionalId = effectiveProfessionalId;
     
@@ -217,7 +217,7 @@ router.get('/appointments/:id', authorize('leader', 'professional', 'admin'), as
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const appointment = await prisma.appointment.findFirst({
       where,
@@ -340,7 +340,7 @@ router.put('/appointments/:id', authorize('leader', 'admin'), async (req: Reques
     const { status, notes, cancelReason, date, time, professionalId } = req.body;
 
     const where: Record<string, unknown> = { id };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const existing = await prisma.appointment.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Agendamento não encontrado');
@@ -406,7 +406,7 @@ router.delete('/appointments/:id', authorize('leader', 'admin'), async (req: Req
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const existing = await prisma.appointment.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Agendamento não encontrado');

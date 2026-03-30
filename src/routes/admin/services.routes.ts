@@ -77,7 +77,7 @@ router.get('/services', authorize('leader', 'professional', 'admin'), async (req
     const skip = (pageNum - 1) * perPageNum;
 
     const where: Record<string, unknown> = {};
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     if (search) {
       where.OR = [
@@ -135,7 +135,7 @@ router.get('/services/:id', authorize('leader', 'professional', 'admin'), async 
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const service = await prisma.service.findFirst({ where });
     if (!service) throw new AppError(404, 'NOT_FOUND', 'Serviço não encontrado');
@@ -235,7 +235,7 @@ router.put('/services/:id', authorize('leader', 'admin'), async (req: Request, r
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const existing = await prisma.service.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Serviço não encontrado');
@@ -293,7 +293,7 @@ router.delete('/services/:id', authorize('leader', 'admin'), async (req: Request
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const existing = await prisma.service.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Serviço não encontrado');

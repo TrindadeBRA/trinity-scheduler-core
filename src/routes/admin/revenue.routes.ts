@@ -61,7 +61,7 @@ router.get('/revenue/summary', authorize('leader', 'professional', 'admin'), asy
     const { unitId, staffId, startDate, endDate } = req.query as Record<string, string | undefined>;
 
     const where: Record<string, unknown> = {};
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
     
     // Apply professional filter when role is 'professional'
     const filteredWhere = applyProfessionalFilter(where, {

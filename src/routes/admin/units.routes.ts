@@ -72,7 +72,7 @@ router.get('/units', authorize('leader', 'professional', 'admin'), async (req: R
     const skip = (pageNum - 1) * perPageNum;
 
     const where: Record<string, unknown> = {};
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     // Professional só vê as unidades às quais está vinculado
     if (req.user?.role === 'professional' && req.user.professionalId) {
@@ -152,7 +152,7 @@ router.get('/units/:id', authorize('leader', 'professional', 'admin'), async (re
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const unit = await prisma.unit.findFirst({ where });
     if (!unit) throw new AppError(404, 'NOT_FOUND', 'Unidade não encontrada');
@@ -307,7 +307,7 @@ router.put('/units/:id', authorize('leader', 'admin'), async (req: Request, res:
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const existing = await prisma.unit.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Unidade não encontrada');
@@ -389,7 +389,7 @@ router.delete('/units/:id', authorize('leader', 'admin'), async (req: Request, r
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
-    if (shopId && req.user?.role !== 'admin') where.shopId = shopId;
+    if (shopId) where.shopId = shopId;
 
     const existing = await prisma.unit.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Unidade não encontrada');

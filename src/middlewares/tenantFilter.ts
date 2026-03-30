@@ -5,11 +5,6 @@ export function tenantFilter(req: Request, res: Response, next: NextFunction): v
     return next();
   }
 
-  // Admin bypassa o filtro de tenant
-  if (req.user.role === 'admin') {
-    return next();
-  }
-
   const shopId = req.user.shopId;
 
   // Para GET, injeta no query
