@@ -4,7 +4,7 @@
   "packageManager": "yarn@4.11.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "prisma generate && prisma migrate deploy && tsc",
+    "build": "prisma generate && prisma migrate deploy && tsx prisma/seed.ts && tsc",
     "start": "node dist/index.js",
     "test": "vitest --run",
     "prisma:generate": "prisma generate",
