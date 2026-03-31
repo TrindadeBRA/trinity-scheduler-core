@@ -84,7 +84,7 @@ router.post('/checkout', authorize('leader', 'admin'), async (req: Request, res:
 
     console.log('[billing/checkout] Asaas response:', JSON.stringify(data));
 
-    const checkoutUrl = (data.url ?? data.paymentUrl ?? data.checkoutUrl) as string | undefined;
+    const checkoutUrl = (data.link ?? data.url ?? data.paymentUrl ?? data.checkoutUrl) as string | undefined;
     if (!checkoutUrl) {
       throw new Error(`URL de checkout não encontrada na resposta: ${JSON.stringify(data)}`);
     }
