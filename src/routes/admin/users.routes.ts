@@ -40,6 +40,15 @@ router.get('/users/me/plan', authorize('leader', 'admin'), async (req: Request, 
       subscriptionStatus: userPlan.subscriptionStatus,
       createdAt: userPlan.createdAt,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @swagger
+ * /admin/users/me/plan:
+ *   post:
  *     tags: [Admin Users - Plan]
  *     summary: Criar ou atualizar o plano do usuário autenticado
  *     security:
