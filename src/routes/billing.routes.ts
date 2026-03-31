@@ -80,9 +80,16 @@ router.post('/checkout', authorize('leader', 'admin'), async (req: Request, res:
         cycle: 'MONTHLY',
         nextDueDate: new Date().toISOString().split('T')[0],
       },
-    }) as { url: string };
+    }) as Record<string, unknown>;
 
-    res.json({ url: data.url });
+    console.log('[billing/checkout] Asaas response:', JSON.stringify(data));
+
+    const checkoutUrl = (data.url ?? data.paymentUrl ?? data.checkoutUrl) as string | undefined;
+    if (!checkoutUrl) {
+      throw new Error(`URL de checkout não encontrada na resposta: ${JSON.stringify(data)}`);
+    }
+
+    res.json({ url: checkoutUrl });
   } catch (err) {
     next(err);
   }
