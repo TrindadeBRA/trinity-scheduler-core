@@ -79,7 +79,7 @@ adminPlansRouter.get('/plans', authorize('admin'), async (req: Request, res: Res
  */
 adminPlansRouter.patch('/plans/:planId', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { planId } = req.params;
+    const planId = req.params.planId as string;
     const { price, unitLimit, professionalLimit } = req.body;
 
     const existing = await prisma.plan.findUnique({ where: { id: planId } });

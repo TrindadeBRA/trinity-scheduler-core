@@ -7,6 +7,9 @@ CREATE TYPE "ServiceType" AS ENUM ('service', 'addon');
 -- CreateEnum
 CREATE TYPE "AppointmentStatus" AS ENUM ('confirmed', 'cancelled', 'completed', 'noshow');
 
+-- CreateEnum
+CREATE TYPE "SubscriptionStatus" AS ENUM ('TRIAL', 'ACTIVE', 'CONFIRMED', 'INACTIVE');
+
 -- CreateTable
 CREATE TABLE "Shop" (
     "id" TEXT NOT NULL,
@@ -179,6 +182,32 @@ CREATE TABLE "ProfessionalUnit" (
     CONSTRAINT "ProfessionalUnit_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Plan" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "price" INTEGER NOT NULL,
+    "unitLimit" INTEGER NOT NULL,
+    "professionalLimit" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Plan_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserPlan" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "planId" TEXT NOT NULL,
+    "subscriptionId" TEXT,
+    "subscriptionStatus" "SubscriptionStatus" NOT NULL DEFAULT 'TRIAL',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserPlan_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -199,6 +228,9 @@ CREATE UNIQUE INDEX "Unit_slug_key" ON "Unit"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ProfessionalUnit_professionalId_unitId_key" ON "ProfessionalUnit"("professionalId", "unitId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserPlan_userId_key" ON "UserPlan"("userId");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -250,3 +282,9 @@ ALTER TABLE "ProfessionalUnit" ADD CONSTRAINT "ProfessionalUnit_professionalId_f
 
 -- AddForeignKey
 ALTER TABLE "ProfessionalUnit" ADD CONSTRAINT "ProfessionalUnit_unitId_fkey" FOREIGN KEY ("unitId") REFERENCES "Unit"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserPlan" ADD CONSTRAINT "UserPlan_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserPlan" ADD CONSTRAINT "UserPlan_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
