@@ -191,20 +191,10 @@ router.post('/webhook', async (req: Request, res: Response) => {
     };
 
     // Extract externalReference and subscriptionId depending on event type
-    let externalReference =
+    const externalReference =
       payment?.externalReference ?? subscription?.externalReference;
     const subscriptionId =
       payment?.subscription ?? subscription?.id;
-
-    // Se externalReference não veio no payment, busca na assinatura via API
-    if (!externalReference && subscriptionId) {
-      try {
-        const sub = await asaasRequest('GET', `/subscriptions/${subscriptionId}`) as { externalReference?: string };
-        externalReference = sub.externalReference;
-      } catch (e) {
-        console.warn(`[billing/webhook] Falha ao buscar assinatura ${subscriptionId}:`, e);
-      }
-    }
 
     if (event === 'PAYMENT_CONFIRMED') {
       if (!externalReference || !externalReference.startsWith('kronuz:')) {
