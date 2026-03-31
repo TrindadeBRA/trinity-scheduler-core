@@ -7,6 +7,98 @@ const router = Router();
 
 /**
  * @swagger
+ * /admin/users/me/plan:
+ *   get:
+ *     tags: [Admin Users - Plan]
+ *     summary: Retornar o plano do usuário autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Plano e status de assinatura do usuário
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserPlan'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+router.get('/users/me/plan', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.id;
+    const userPlan = await prisma.userPlan.findUnique({ where: { userId } });
+
+    if (!userPlan) {
+      return res.json({ planId: 'FREE', subscriptionId: null, subscriptionStatus: 'TRIAL' });
+    }
+
+    res.json({
+      planId: userPlan.planId,
+      subscriptionId: userPlan.subscriptionId ?? null,
+      subscriptionStatus: userPlan.subscriptionStatus,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @swagger
+ * /admin/users/me/plan:
+ *   post:
+ *     tags: [Admin Users - Plan]
+ *     summary: Criar ou atualizar o plano do usuário autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - planId
+ *             properties:
+ *               planId:
+ *                 type: string
+ *                 enum: [FREE, PREMIUM, PRO, ADMIN]
+ *     responses:
+ *       200:
+ *         description: Plano criado ou atualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserPlan'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+router.post('/users/me/plan', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.id;
+    const { planId } = req.body;
+
+    const userPlan = await prisma.userPlan.upsert({
+      where: { userId },
+      create: { userId, planId },
+      update: { planId },
+    });
+
+    res.json({
+      planId: userPlan.planId,
+      subscriptionId: userPlan.subscriptionId ?? null,
+      subscriptionStatus: userPlan.subscriptionStatus,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @swagger
  * /admin/users:
  *   get:
  *     tags: [Admin Users]

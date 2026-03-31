@@ -42,6 +42,7 @@ model User {
 
   shop         Shop          @relation(fields: [shopId], references: [id])
   professional Professional? @relation(fields: [professionalId], references: [id])
+  userPlan     UserPlan?
 }
 
 enum Role {
@@ -215,4 +216,36 @@ model ProfessionalUnit {
   unit         Unit         @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
   @@unique([professionalId, unitId])
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  CONFIRMED
+  INACTIVE
+}
+
+model Plan {
+  id                String   @id // "FREE" | "PREMIUM" | "PRO" | "ADMIN"
+  name              String
+  price             Int
+  unitLimit         Int      // -1 = ilimitado
+  professionalLimit Int      // -1 = ilimitado
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  userPlans UserPlan[]
+}
+
+model UserPlan {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  planId             String
+  subscriptionId     String?
+  subscriptionStatus SubscriptionStatus @default(TRIAL)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  plan Plan @relation(fields: [planId], references: [id])
 }

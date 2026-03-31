@@ -29,6 +29,8 @@ import adminRevenueRouter from './admin/revenue.routes';
 import adminUploadRouter from './admin/upload.routes';
 import adminSystemRouter from './admin/system.routes';
 import adminUsersRouter from './admin/users.routes';
+import { adminPlansRouter, plansRouter } from './admin/plans.routes';
+import billingRouter from './billing.routes';
 
 export function mountRoutes(app: Express): void {
   // ─── Public routes (no authentication required) ──────────────────────────
@@ -62,4 +64,11 @@ export function mountRoutes(app: Express): void {
   app.use('/admin/system', adminSystemRouter);
   // Admin-only routes (sem tenantFilter — admin não pertence a um shop)
   app.use('/admin', authMiddleware, adminUsersRouter);
+  app.use('/admin', authMiddleware, adminPlansRouter);
+
+  // Plans route (accessible by leader and admin)
+  app.use('/', authMiddleware, plansRouter);
+
+  // Billing routes (checkout + cancel: auth required; webhook: public)
+  app.use('/billing', billingRouter);
 }

@@ -4,6 +4,7 @@ import { authorize } from '../../middlewares/authorize';
 import { AppError } from '../../utils/errors';
 import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
 import { sanitizeSlug, validateSlug, generateSlug } from '../../utils/slug';
+import { limitMiddleware } from '../../middlewares/limitMiddleware';
 
 const router = Router();
 
@@ -205,7 +206,7 @@ router.get('/units/:id', authorize('leader', 'professional', 'admin'), async (re
  *       409:
  *         description: Slug já está em uso
  */
-router.post('/units', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/units', authorize('leader', 'admin'), limitMiddleware('unit'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');

@@ -4,6 +4,7 @@ import { authorize } from '../../middlewares/authorize';
 import { AppError } from '../../utils/errors';
 import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
 import { createProfessionalCredentials, updateProfessionalCredentials, getProfessionalUser } from '../../services/professionalCredentials.service';
+import { limitMiddleware } from '../../middlewares/limitMiddleware';
 
 const router = Router();
 
@@ -201,7 +202,7 @@ router.get('/professionals/:id', authorize('leader', 'professional', 'admin'), a
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.post('/professionals', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/professionals', authorize('leader', 'admin'), limitMiddleware('professional'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');

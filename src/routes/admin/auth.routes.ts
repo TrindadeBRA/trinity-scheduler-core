@@ -237,6 +237,15 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
         },
       });
 
+      // Cria UserPlan FREE automaticamente para o novo leader
+      await tx.userPlan.create({
+        data: {
+          userId: newUser.id,
+          planId: 'FREE',
+          subscriptionStatus: 'TRIAL',
+        },
+      });
+
       return { shop: newShop, user: newUser };
     });
 

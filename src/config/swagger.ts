@@ -80,6 +80,10 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
       { name: 'Client Units', description: 'Resolução de slug para shopId/unitId' },
       { name: 'Public', description: 'Endpoints públicos sem autenticação' },
       { name: 'Admin - System', description: 'Utilitários do sistema (apenas admin) — execução manual de rotinas automáticas' },
+      { name: 'Admin Plans', description: 'Configuração de planos pelo admin' },
+      { name: 'Plans', description: 'Listagem de planos disponíveis' },
+      { name: 'Admin Users - Plan', description: 'Plano do usuário autenticado' },
+      { name: 'Billing', description: 'Assinaturas e checkout via Asaas' },
     ],
     components: {
       securitySchemes: {
@@ -533,6 +537,46 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
             },
           },
         },
+        Plan: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', enum: ['FREE', 'PREMIUM', 'PRO', 'ADMIN'] },
+            name: { type: 'string' },
+            price: { type: 'integer', description: 'Preço em centavos' },
+            unitLimit: { type: 'integer', description: 'Limite de unidades (-1 = ilimitado)' },
+            professionalLimit: { type: 'integer', description: 'Limite de profissionais (-1 = ilimitado)' },
+          },
+        },
+        PlanUpdateInput: {
+          type: 'object',
+          properties: {
+            price: { type: 'integer' },
+            unitLimit: { type: 'integer' },
+            professionalLimit: { type: 'integer' },
+          },
+        },
+        UserPlan: {
+          type: 'object',
+          properties: {
+            planId: { type: 'string', enum: ['FREE', 'PREMIUM', 'PRO', 'ADMIN'] },
+            subscriptionId: { type: 'string', nullable: true },
+            subscriptionStatus: { type: 'string', enum: ['TRIAL', 'ACTIVE', 'CONFIRMED', 'INACTIVE'] },
+          },
+        },
+        CheckoutRequest: {
+          type: 'object',
+          required: ['planId', 'planPrice'],
+          properties: {
+            planId: { type: 'string', description: 'ID do plano selecionado' },
+            planPrice: { type: 'integer', description: 'Preço em centavos' },
+          },
+        },
+        CheckoutResponse: {
+          type: 'object',
+          properties: {
+            url: { type: 'string', description: 'URL do Asaas Checkout para redirecionamento' },
+          },
+        },
       },
       responses: {
         Unauthorized: {
@@ -556,6 +600,15 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' },
+            },
+          },
+        },
+        PlanLimitExceeded: {
+          description: 'Limite do plano atingido',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' },
+              example: { error: 'PLAN_LIMIT_EXCEEDED', message: 'Limite de unidades do plano atingido. Faça upgrade para continuar.' },
             },
           },
         },
