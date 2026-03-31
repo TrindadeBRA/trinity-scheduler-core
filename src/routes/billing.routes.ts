@@ -209,7 +209,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
           ...(subscriptionId ? { subscriptionId } : {}),
         },
       });
-    } else if (event === 'PAYMENT_OVERDUE' || event === 'SUBSCRIPTION_DELETED') {
+    } else if (event === 'PAYMENT_OVERDUE' || event === 'SUBSCRIPTION_DELETED' || event === 'SUBSCRIPTION_INACTIVATED') {
       if (!externalReference || !externalReference.startsWith('kronuz:')) {
         console.warn(`[billing/webhook] ${event}: invalid externalReference: ${externalReference}`);
         return res.status(200).json({ received: true });
