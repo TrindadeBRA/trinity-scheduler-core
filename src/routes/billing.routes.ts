@@ -4,13 +4,13 @@ import { authorize } from '../middlewares/authorize';
 
 const router = Router();
 
-const ASAAS_BASE_URL = process.env.ASAAS_API_URL ?? 'https://sandbox.asaas.com/api';
+const ASAAS_BASE_URL = process.env.ASAAS_BASE_URL ?? 'https://api-sandbox.asaas.com/v3';
 
 async function asaasRequest(method: string, path: string, body?: unknown) {
   const res = await fetch(`${ASAAS_BASE_URL}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${process.env.ASAAS_API_KEY ?? ''}`,
+      'access_token': process.env.ASAAS_API_KEY ?? '',
       'Content-Type': 'application/json',
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -51,17 +51,33 @@ async function asaasRequest(method: string, path: string, body?: unknown) {
 router.post('/checkout', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
-    const { planId, planPrice } = req.body as { planId: string; planPrice: number };
+    const { planId } = req.body as { planId: string };
 
-    const successUrl = `${process.env.FRONTEND_URL ?? ''}/profile/plans?status=success`;
+    const plan = await prisma.plan.findUnique({ where: { id: planId } });
+    if (!plan) {
+      res.status(404).json({ error: 'Plano não encontrado' });
+      return;
+    }
 
-    const data = await asaasRequest('POST', '/v3/checkoutSessions', {
-      chargeType: 'RECURRENT',
-      cycle: 'MONTHLY',
-      value: planPrice / 100, // Asaas expects value in BRL (not cents)
+    const baseUrl    = process.env.ADMIN_URL ?? '';
+    const successUrl = `${baseUrl}/profile/plans?status=success`;
+    const cancelUrl  = `${baseUrl}/profile/plans`;
+
+    const data = await asaasRequest('POST', '/checkouts', {
+      billingTypes: ['CREDIT_CARD'],
+      chargeTypes:  ['RECURRENT'],
       externalReference: `kronuz:${userId}`,
-      callback: {
-        successUrl,
+      callback: { successUrl, cancelUrl },
+      items: [
+        {
+          name:        plan.name,
+          quantity:    1,
+          value:       plan.price / 100,
+          imageBase64: '',
+        },
+      ],
+      subscription: {
+        cycle: 'MONTHLY',
       },
     }) as { url: string };
 
@@ -98,7 +114,7 @@ router.delete('/subscriptions/:id', authorize('leader', 'admin'), async (req: Re
   try {
     const { id } = req.params;
 
-    await asaasRequest('DELETE', `/v3/subscriptions/${id}`);
+    await asaasRequest('DELETE', `/subscriptions/${id}`);
 
     res.json({ success: true });
   } catch (err) {
