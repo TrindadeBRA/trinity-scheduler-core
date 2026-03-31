@@ -70,10 +70,11 @@ router.post('/checkout', authorize('leader', 'admin'), async (req: Request, res:
       callback: { successUrl, cancelUrl },
       items: [
         {
-          name:        plan.name,
-          quantity:    1,
-          value:       plan.price / 100,
-          imageBase64: '',
+          name:             plan.name,
+          quantity:         1,
+          value:            plan.price / 100,
+          imageBase64:      '',
+          externalReference: `kronuz:${userId}`,
         },
       ],
       subscription: {
