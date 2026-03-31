@@ -66,21 +66,19 @@ router.post('/checkout', authorize('leader', 'admin'), async (req: Request, res:
     const data = await asaasRequest('POST', '/checkouts', {
       billingTypes: ['CREDIT_CARD'],
       chargeTypes:  ['RECURRENT'],
-      externalReference: `kronuz:${userId}`,
       callback: { successUrl, cancelUrl },
       items: [
         {
-          name:             plan.name,
-          quantity:         1,
-          value:            plan.price / 100,
-          imageBase64:      '',
+          name:              plan.name,
+          quantity:          1,
+          value:             plan.price / 100,
+          imageBase64:       '',
           externalReference: `kronuz:${userId}`,
         },
       ],
       subscription: {
         cycle:        'MONTHLY',
         nextDueDate:  new Date().toISOString().split('T')[0],
-        externalReference: `kronuz:${userId}`,
       },
     }) as Record<string, unknown>;
 
