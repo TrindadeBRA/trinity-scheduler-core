@@ -78,6 +78,7 @@ router.post('/checkout', authorize('leader', 'admin'), async (req: Request, res:
       ],
       subscription: {
         cycle: 'MONTHLY',
+        nextDueDate: new Date().toISOString().split('T')[0],
       },
     }) as { url: string };
 
