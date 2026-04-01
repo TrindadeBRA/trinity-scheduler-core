@@ -5,10 +5,17 @@ import { authMiddleware } from '../middlewares/auth';
 
 const router = Router();
 
-const ASAAS_BASE_URL = process.env.ASAAS_BASE_URL ?? 'https://api-sandbox.asaas.com/v3';
+const ASAAS_BASE_URL = process.env.ASAAS_BASE_URL;
+
+console.log('[billing] ASAAS_BASE_URL:', ASAAS_BASE_URL);
 
 async function asaasRequest(method: string, path: string, body?: unknown) {
-  const res = await fetch(`${ASAAS_BASE_URL}${path}`, {
+  if (!ASAAS_BASE_URL) throw new Error('ASAAS_BASE_URL não configurada');
+
+  const url = `${ASAAS_BASE_URL}${path}`;
+  console.log(`[billing] ${method} ${url}`);
+
+  const res = await fetch(url, {
     method,
     headers: {
       'access_token': process.env.ASAAS_API_KEY ?? '',
@@ -16,9 +23,10 @@ async function asaasRequest(method: string, path: string, body?: unknown) {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+
   if (!res.ok) {
     const text = await res.text();
-    // Tenta extrair a primeira description legível dos erros do Asaas
+    console.error(`[billing] ${method} ${url} → ${res.status}:`, text);
     let friendlyMessage = `Asaas API error ${res.status}`;
     try {
       const parsed = JSON.parse(text);
