@@ -79,7 +79,7 @@ router.post('/checkout', authorize('leader', 'admin'), async (req: Request, res:
       ],
       subscription: {
         cycle:       'MONTHLY',
-        nextDueDate: new Date().toISOString().split('T')[0],
+        nextDueDate: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
       },
     }) as Record<string, unknown>;
 
