@@ -22,12 +22,16 @@ async function asaasRequest(method: string, path: string, body?: unknown) {
   return res.json();
 }
 
+export function buildExternalReference(userId: string, planId: string): string {
+  return `kronuz:${userId}:${planId}`;
+}
+
 /**
  * @swagger
- * /billing/checkout:
+ * /billing/subscribe:
  *   post:
  *     tags: [Billing]
- *     summary: Criar Checkout Session no Asaas para assinatura recorrente
+ *     summary: Criar assinatura direta via cartão de crédito no Asaas
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -35,63 +39,144 @@ async function asaasRequest(method: string, path: string, body?: unknown) {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/CheckoutRequest'
+ *             type: object
  *     responses:
  *       200:
- *         description: URL do Checkout Session criado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/CheckoutResponse'
+ *         description: Assinatura criada com sucesso
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
  *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       502:
+ *         description: Erro na API do Asaas
  */
-router.post('/checkout', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/subscribe', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
-    const { planId } = req.body as { planId: string };
+    const {
+      planId,
+      name,
+      cpfCnpj,
+      email,
+      phone,
+      postalCode,
+      addressNumber,
+      remoteIp,
+      creditCard,
+      creditCardHolderInfo,
+    } = req.body as {
+      planId?: string;
+      name?: string;
+      cpfCnpj?: string;
+      email?: string;
+      phone?: string;
+      postalCode?: string;
+      addressNumber?: string;
+      remoteIp?: string;
+      creditCard?: {
+        holderName?: string;
+        number?: string;
+        expiryMonth?: string;
+        expiryYear?: string;
+        ccv?: string;
+      };
+      creditCardHolderInfo?: {
+        name?: string;
+        email?: string;
+        cpfCnpj?: string;
+        postalCode?: string;
+        addressNumber?: string;
+        phone?: string;
+      };
+    };
 
-    const plan = await prisma.plan.findUnique({ where: { id: planId } });
-    if (!plan) {
-      res.status(404).json({ error: 'Plano não encontrado' });
+    // Task 1.1 — Validate required top-level fields
+    const missingTopLevel = (['planId', 'name', 'cpfCnpj', 'email', 'phone', 'postalCode', 'addressNumber', 'remoteIp'] as const)
+      .find(field => !req.body[field]);
+    if (missingTopLevel) {
+      res.status(400).json({ error: 'VALIDATION_ERROR', message: `Campo ${missingTopLevel} é obrigatório` });
       return;
     }
 
-    const baseUrl    = process.env.ADMIN_URL ?? '';
-    const successUrl = `${baseUrl}/profile/plans?status=success`;
-    const cancelUrl  = `${baseUrl}/profile/plans`;
-
-    const data = await asaasRequest('POST', '/checkouts', {
-      billingTypes:      ['CREDIT_CARD'],
-      chargeTypes:       ['RECURRENT'],
-      externalReference: `kronuz:${userId}`,
-      callback:          { successUrl, cancelUrl },
-      items: [
-        {
-          name:              plan.name,
-          quantity:          1,
-          value:             plan.price / 100,
-          imageBase64:       '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',
-          externalReference: planId,
-        },
-      ],
-      subscription: {
-        cycle:             'MONTHLY',
-        nextDueDate:       new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
-        externalReference: `kronuz:${userId}`,
-      },
-    }) as Record<string, unknown>;
-
-    console.log('[billing/checkout] Asaas response:', JSON.stringify(data));
-
-    const checkoutUrl = (data.link ?? data.url ?? data.paymentUrl ?? data.checkoutUrl) as string | undefined;
-    if (!checkoutUrl) {
-      throw new Error(`URL de checkout não encontrada na resposta: ${JSON.stringify(data)}`);
+    // Validate creditCard object and its required fields
+    if (!creditCard) {
+      res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Campo creditCard é obrigatório' });
+      return;
+    }
+    const missingCardField = (['holderName', 'number', 'expiryMonth', 'expiryYear', 'ccv'] as const)
+      .find(field => !creditCard[field]);
+    if (missingCardField) {
+      res.status(400).json({ error: 'VALIDATION_ERROR', message: `Campo creditCard.${missingCardField} é obrigatório` });
+      return;
     }
 
-    res.json({ url: checkoutUrl });
+    // Validate creditCardHolderInfo object and its required fields
+    if (!creditCardHolderInfo) {
+      res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Campo creditCardHolderInfo é obrigatório' });
+      return;
+    }
+    const missingHolderField = (['name', 'email', 'cpfCnpj', 'postalCode', 'addressNumber', 'phone'] as const)
+      .find(field => !creditCardHolderInfo[field]);
+    if (missingHolderField) {
+      res.status(400).json({ error: 'VALIDATION_ERROR', message: `Campo creditCardHolderInfo.${missingHolderField} é obrigatório` });
+      return;
+    }
+
+    // Task 1.2 — Plan lookup
+    const plan = await prisma.plan.findUnique({ where: { id: planId! } });
+    if (!plan) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Plano não encontrado' });
+      return;
+    }
+
+    // Task 1.3 — Create Asaas Customer
+    let customer: { id: string };
+    try {
+      customer = await asaasRequest('POST', '/customers', {
+        name,
+        cpfCnpj,
+        email,
+        phone,
+        postalCode,
+      }) as { id: string };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(502).json({ error: 'ASAAS_ERROR', message });
+      return;
+    }
+
+    // Task 1.4 — Create Asaas Subscription (credit card endpoint — trailing slash)
+    let sub: { id: string };
+    try {
+      sub = await asaasRequest('POST', '/subscriptions/', {
+        customer: customer.id,
+        billingType: 'CREDIT_CARD',
+        value: plan.price / 100,
+        nextDueDate: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
+        cycle: 'MONTHLY',
+        externalReference: buildExternalReference(userId, planId!),
+        creditCard: req.body.creditCard,
+        creditCardHolderInfo: req.body.creditCardHolderInfo,
+        remoteIp: req.body.remoteIp,
+      }) as { id: string };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(502).json({ error: 'ASAAS_ERROR', message });
+      return;
+    }
+
+    // Task 1.5 — Upsert UserPlan and return response
+    await prisma.userPlan.upsert({
+      where: { userId },
+      update: { subscriptionId: sub.id, planId: planId!, subscriptionStatus: 'ACTIVE' },
+      create: { userId, planId: planId!, subscriptionId: sub.id, subscriptionStatus: 'ACTIVE' },
+    });
+
+    res.json({ subscriptionId: sub.id });
   } catch (err) {
     next(err);
   }
@@ -174,61 +259,33 @@ router.delete('/subscriptions/:id', authorize('leader', 'admin'), async (req: Re
  */
 router.post('/webhook', async (req: Request, res: Response) => {
   try {
-    const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
-    const receivedToken =
-      (req.headers['asaas-access-token'] as string | undefined) ??
-      (req.query['token'] as string | undefined);
-
-    if (webhookToken && receivedToken !== webhookToken) {
-      // Always return 200 to avoid retry loops, but don't process
-      return res.status(200).json({ received: true });
-    }
-
     const { event, payment, subscription } = req.body as {
       event: string;
       payment?: { externalReference?: string; subscription?: string };
       subscription?: { id?: string; externalReference?: string };
     };
 
-    // Extract externalReference and subscriptionId depending on event type
-    let externalReference =
-      payment?.externalReference ?? subscription?.externalReference;
-    const subscriptionId =
-      payment?.subscription ?? subscription?.id;
+    const externalReference = payment?.externalReference ?? subscription?.externalReference;
 
-    // Se externalReference veio vazio mas temos o subscriptionId, busca na API do Asaas
-    if ((!externalReference || !externalReference.startsWith('kronuz:')) && subscriptionId) {
-      try {
-        const sub = await asaasRequest('GET', `/subscriptions/${subscriptionId}`) as { externalReference?: string };
-        if (sub.externalReference) externalReference = sub.externalReference;
-      } catch (e) {
-        console.error(`[billing/webhook] Falha ao buscar subscription ${subscriptionId}:`, e);
-      }
+    if (!externalReference?.startsWith('kronuz:')) {
+      console.warn(`[billing/webhook] externalReference inválido: ${externalReference}`);
+      return res.status(200).json({ received: true });
     }
 
+    // Parse: "kronuz:{userId}:{planId}"
+    const [, userId, planId] = externalReference.split(':', 3);
+
     if (event === 'PAYMENT_CONFIRMED') {
-      if (!externalReference || !externalReference.startsWith('kronuz:')) {
-        console.warn(`[billing/webhook] PAYMENT_CONFIRMED: invalid externalReference: ${externalReference}`);
-        return res.status(200).json({ received: true });
-      }
-
-      const userId = externalReference.replace('kronuz:', '');
-
+      const subscriptionId = payment?.subscription ?? subscription?.id;
       await prisma.userPlan.updateMany({
         where: { userId },
         data: {
+          planId,
           subscriptionStatus: 'ACTIVE',
           ...(subscriptionId ? { subscriptionId } : {}),
         },
       });
     } else if (event === 'PAYMENT_OVERDUE' || event === 'SUBSCRIPTION_DELETED' || event === 'SUBSCRIPTION_INACTIVATED') {
-      if (!externalReference || !externalReference.startsWith('kronuz:')) {
-        console.warn(`[billing/webhook] ${event}: invalid externalReference: ${externalReference}`);
-        return res.status(200).json({ received: true });
-      }
-
-      const userId = externalReference.replace('kronuz:', '');
-
       await prisma.userPlan.updateMany({
         where: { userId },
         data: { subscriptionStatus: 'INACTIVE' },
