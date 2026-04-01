@@ -212,6 +212,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
           shopId: newShop.id,
           unitId: firstUnit.id,
           name: professional.name,
+          phone: professional.isOwner ? (owner.phone || null) : (professional.phone || null),
           avatar: professional.avatar || null,
           specialties: professional.specialties || [],
           workingHours: {
