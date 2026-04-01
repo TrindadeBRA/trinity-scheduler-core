@@ -13,7 +13,7 @@ async function asaasRequest(method: string, path: string, body?: unknown) {
   if (!ASAAS_BASE_URL) throw new Error('ASAAS_BASE_URL não configurada');
 
   const url = `${ASAAS_BASE_URL}${path}`;
-  console.log(`[billing] ${method} ${url}`);
+  console.log(`[billing] ${method} ${url}`, body ? JSON.stringify(body) : '');
 
   const res = await fetch(url, {
     method,
@@ -26,19 +26,13 @@ async function asaasRequest(method: string, path: string, body?: unknown) {
 
   if (!res.ok) {
     const text = await res.text();
-    console.error(`[billing] ${method} ${url} → ${res.status}:`, text);
-    let friendlyMessage = `Asaas API error ${res.status}`;
-    try {
-      const parsed = JSON.parse(text);
-      const firstError = parsed?.errors?.[0];
-      if (firstError?.description) {
-        friendlyMessage = firstError.description;
-      } else if (parsed?.message) {
-        friendlyMessage = parsed.message;
-      }
-    } catch {
-      // mantém a mensagem genérica
-    }
+    let parsed: { errors?: { code?: string; description?: string }[]; message?: string } = {};
+    try { parsed = JSON.parse(text); } catch { /* mantém vazio */ }
+
+    const firstError = parsed?.errors?.[0];
+    const friendlyMessage = firstError?.description ?? parsed?.message ?? `Asaas API error ${res.status}`;
+
+    console.error(`[billing] ${method} ${url} → ${res.status} | code=${firstError?.code ?? 'n/a'} | msg=${friendlyMessage} | full=${text}`);
     throw new Error(friendlyMessage);
   }
   return res.json();
