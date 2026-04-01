@@ -78,8 +78,9 @@ router.post('/checkout', authorize('leader', 'admin'), async (req: Request, res:
         },
       ],
       subscription: {
-        cycle:       'MONTHLY',
-        nextDueDate: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
+        cycle:             'MONTHLY',
+        nextDueDate:       new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
+        externalReference: `kronuz:${userId}`,
       },
     }) as Record<string, unknown>;
 
@@ -190,10 +191,20 @@ router.post('/webhook', async (req: Request, res: Response) => {
     };
 
     // Extract externalReference and subscriptionId depending on event type
-    const externalReference =
+    let externalReference =
       payment?.externalReference ?? subscription?.externalReference;
     const subscriptionId =
       payment?.subscription ?? subscription?.id;
+
+    // Se externalReference veio vazio mas temos o subscriptionId, busca na API do Asaas
+    if ((!externalReference || !externalReference.startsWith('kronuz:')) && subscriptionId) {
+      try {
+        const sub = await asaasRequest('GET', `/subscriptions/${subscriptionId}`) as { externalReference?: string };
+        if (sub.externalReference) externalReference = sub.externalReference;
+      } catch (e) {
+        console.error(`[billing/webhook] Falha ao buscar subscription ${subscriptionId}:`, e);
+      }
+    }
 
     if (event === 'PAYMENT_CONFIRMED') {
       if (!externalReference || !externalReference.startsWith('kronuz:')) {
