@@ -156,13 +156,17 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
     }
 
     // Task 1.3 — Create Asaas Customer
+    // Números com 9 dígitos (sem DDD) ou 11 dígitos = celular → mobilePhone
+    // Números com 10 dígitos = fixo → phone
+    const phoneDigits = (phone ?? '').replace(/\D/g, '');
+    const isMobile = phoneDigits.length === 11;
     let customer: { id: string };
     try {
       customer = await asaasRequest('POST', '/customers', {
         name,
         cpfCnpj,
         email,
-        phone,
+        ...(isMobile ? { mobilePhone: phoneDigits } : { phone: phoneDigits }),
         postalCode,
       }) as { id: string };
     } catch (err) {
@@ -182,7 +186,14 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
         cycle: 'MONTHLY',
         externalReference: buildExternalReference(userId, planId!),
         creditCard: req.body.creditCard,
-        creditCardHolderInfo: req.body.creditCardHolderInfo,
+        creditCardHolderInfo: {
+          name: creditCardHolderInfo!.name,
+          email: creditCardHolderInfo!.email,
+          cpfCnpj: creditCardHolderInfo!.cpfCnpj,
+          postalCode: creditCardHolderInfo!.postalCode,
+          addressNumber: creditCardHolderInfo!.addressNumber,
+          ...(isMobile ? { mobilePhone: phoneDigits } : { phone: phoneDigits }),
+        },
         remoteIp: req.body.remoteIp,
       }) as { id: string };
     } catch (err) {
