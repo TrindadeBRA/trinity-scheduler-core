@@ -169,11 +169,11 @@ router.post('/subscribe', authorize('leader', 'admin'), async (req: Request, res
       return;
     }
 
-    // Task 1.5 — Upsert UserPlan and return response
+    // Task 1.5 — Upsert UserPlan with PENDING status — webhook PAYMENT_CONFIRMED will activate it
     await prisma.userPlan.upsert({
       where: { userId },
-      update: { subscriptionId: sub.id, planId: planId!, subscriptionStatus: 'ACTIVE' },
-      create: { userId, planId: planId!, subscriptionId: sub.id, subscriptionStatus: 'ACTIVE' },
+      update: { subscriptionId: sub.id, planId: planId! },
+      create: { userId, planId: planId!, subscriptionId: sub.id },
     });
 
     res.json({ subscriptionId: sub.id });
