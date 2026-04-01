@@ -18,7 +18,20 @@ async function asaasRequest(method: string, path: string, body?: unknown) {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Asaas API error ${res.status}: ${text}`);
+    // Tenta extrair a primeira description legível dos erros do Asaas
+    let friendlyMessage = `Asaas API error ${res.status}`;
+    try {
+      const parsed = JSON.parse(text);
+      const firstError = parsed?.errors?.[0];
+      if (firstError?.description) {
+        friendlyMessage = firstError.description;
+      } else if (parsed?.message) {
+        friendlyMessage = parsed.message;
+      }
+    } catch {
+      // mantém a mensagem genérica
+    }
+    throw new Error(friendlyMessage);
   }
   return res.json();
 }
