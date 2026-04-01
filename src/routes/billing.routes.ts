@@ -159,6 +159,7 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
     // Números com 9 dígitos (sem DDD) ou 11 dígitos = celular → mobilePhone
     // Números com 10 dígitos = fixo → phone
     const phoneDigits = (phone ?? '').replace(/\D/g, '');
+    const postalCodeDigits = (postalCode ?? '').replace(/\D/g, '');
     const isMobile = phoneDigits.length === 11;
     let customer: { id: string };
     try {
@@ -167,7 +168,7 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
         cpfCnpj,
         email,
         ...(isMobile ? { mobilePhone: phoneDigits } : { phone: phoneDigits }),
-        postalCode,
+        postalCode: postalCodeDigits,
       }) as { id: string };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -190,7 +191,7 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
           name: creditCardHolderInfo!.name,
           email: creditCardHolderInfo!.email,
           cpfCnpj: creditCardHolderInfo!.cpfCnpj,
-          postalCode: creditCardHolderInfo!.postalCode,
+          postalCode: (creditCardHolderInfo!.postalCode ?? '').replace(/\D/g, ''),
           addressNumber: creditCardHolderInfo!.addressNumber,
           phone: phoneDigits,
           ...(isMobile ? { mobilePhone: phoneDigits } : {}),
