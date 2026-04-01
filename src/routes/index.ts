@@ -71,4 +71,5 @@ export function mountRoutes(app: Express): void {
 
   // Billing routes (subscribe + cancel: auth required; webhook: public)
   app.use('/billing', billingRouter);
+  app.use('/billing', billingRouter);
 }

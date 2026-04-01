@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../utils/prisma';
 import { authorize } from '../middlewares/authorize';
+import { authMiddleware } from '../middlewares/auth';
 
 const router = Router();
 
@@ -54,7 +55,7 @@ export function buildExternalReference(userId: string, planId: string): string {
  *       502:
  *         description: Erro na API do Asaas
  */
-router.post('/subscribe', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
     const {
@@ -205,7 +206,7 @@ router.post('/subscribe', authorize('leader', 'admin'), async (req: Request, res
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-router.delete('/subscriptions/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/subscriptions/:id', authMiddleware, authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
 
