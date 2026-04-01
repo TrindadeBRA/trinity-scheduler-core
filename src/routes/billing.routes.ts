@@ -192,7 +192,8 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
           cpfCnpj: creditCardHolderInfo!.cpfCnpj,
           postalCode: creditCardHolderInfo!.postalCode,
           addressNumber: creditCardHolderInfo!.addressNumber,
-          ...(isMobile ? { mobilePhone: phoneDigits } : { phone: phoneDigits }),
+          phone: phoneDigits,
+          ...(isMobile ? { mobilePhone: phoneDigits } : {}),
         },
         remoteIp: req.body.remoteIp,
       }) as { id: string };
