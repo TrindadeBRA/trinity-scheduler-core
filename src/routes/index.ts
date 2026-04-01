@@ -67,8 +67,8 @@ export function mountRoutes(app: Express): void {
   app.use('/admin', authMiddleware, adminPlansRouter);
 
   // Plans route (accessible by leader and admin)
-  app.use('/', authMiddleware, plansRouter);
+  app.use('/plans', authMiddleware, plansRouter);
 
-  // Billing routes (checkout + cancel: auth required; webhook: public)
+  // Billing routes (subscribe + cancel: auth required; webhook: public)
   app.use('/billing', billingRouter);
 }

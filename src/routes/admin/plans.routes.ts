@@ -127,7 +127,7 @@ export const plansRouter = Router();
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  */
-plansRouter.get('/plans', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+plansRouter.get('/', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const plans = await prisma.plan.findMany({
       orderBy: { price: 'asc' },
