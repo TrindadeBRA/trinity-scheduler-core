@@ -31,7 +31,8 @@ router.get('/users/me/plan', authorize('leader', 'admin'), async (req: Request, 
     const userPlan = await prisma.userPlan.findUnique({ where: { userId } });
 
     if (!userPlan) {
-      return res.json({ planId: 'FREE', subscriptionId: null, subscriptionStatus: 'TRIAL' });
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } });
+      return res.json({ planId: 'FREE', subscriptionId: null, subscriptionStatus: 'TRIAL', createdAt: user?.createdAt ?? null });
     }
 
     res.json({
