@@ -7,13 +7,10 @@ const router = Router();
 
 const ASAAS_BASE_URL = process.env.ASAAS_BASE_URL;
 
-console.log('[billing] ASAAS_BASE_URL:', ASAAS_BASE_URL);
-
 async function asaasRequest(method: string, path: string, body?: unknown) {
   if (!ASAAS_BASE_URL) throw new Error('ASAAS_BASE_URL não configurada');
 
   const url = `${ASAAS_BASE_URL}${path}`;
-  console.log(`[billing] ${method} ${url}`, body ? JSON.stringify(body) : '');
 
   const res = await fetch(url, {
     method,
@@ -32,7 +29,7 @@ async function asaasRequest(method: string, path: string, body?: unknown) {
     const firstError = parsed?.errors?.[0];
     const friendlyMessage = firstError?.description ?? parsed?.message ?? `Asaas API error ${res.status}`;
 
-    console.error(`[billing] ${method} ${url} → ${res.status} | code=${firstError?.code ?? 'n/a'} | msg=${friendlyMessage} | full=${text}`);
+    console.error(`[billing] Asaas error: ${method} ${url} → ${res.status}`);
     throw new Error(friendlyMessage);
   }
   return res.json();
@@ -196,11 +193,6 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
       remoteIp: req.body.remoteIp,
     };
 
-    console.log('[billing] subscription payload (card number redacted):', JSON.stringify({
-      ...subscriptionPayload,
-      creditCard: { ...subscriptionPayload.creditCard, number: '****', ccv: '***' },
-    }));
-
     let sub: { id: string };
     try {
       sub = await asaasRequest('POST', '/subscriptions/', subscriptionPayload) as { id: string };
@@ -250,16 +242,12 @@ router.delete('/subscriptions/:id', authMiddleware, authorize('leader', 'admin')
     const id = req.params.id as string;
     const userId = req.user!.id;
 
-    console.log(`[billing] cancelling subscription ${id} for user ${userId}`);
-
     await asaasRequest('DELETE', `/subscriptions/${id}`);
 
     await prisma.userPlan.updateMany({
       where: { userId, subscriptionId: id },
       data: { subscriptionStatus: 'INACTIVE' },
     });
-
-    console.log(`[billing] subscription ${id} cancelled and marked INACTIVE`);
 
     res.json({ success: true });
   } catch (err) {
@@ -317,10 +305,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
     const externalReference = payment?.externalReference ?? subscription?.externalReference;
 
-    console.log(`[billing/webhook] event=${event} | externalReference=${externalReference} | subscriptionId=${payment?.subscription ?? subscription?.id ?? 'n/a'}`);
-
     if (!externalReference?.startsWith('kronuz:')) {
-      console.warn(`[billing/webhook] externalReference inválido: ${externalReference}`);
       return res.status(200).json({ received: true });
     }
 
@@ -348,7 +333,6 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
     return res.status(200).json({ received: true });
   } catch (err) {
-    console.error('[billing/webhook] Error processing webhook:', err);
     return res.status(200).json({ received: true });
   }
 });
