@@ -29,6 +29,7 @@ vi.mock('../utils/prisma', () => ({
       findFirst: vi.fn(),
       count: vi.fn(),
       create: vi.fn(),
+      groupBy: vi.fn(),
     },
     client: {
       findMany: vi.fn(),
@@ -43,6 +44,9 @@ vi.mock('../utils/prisma', () => ({
     professional: {
       findMany: vi.fn(),
       count: vi.fn(),
+    },
+    userPlan: {
+      findMany: vi.fn(),
     },
     $transaction: vi.fn(),
   },
@@ -96,6 +100,7 @@ function makeUser(shopId: string, role = 'leader') {
     email: `user@${shopId}.com`,
     role,
     shopId,
+    createdAt: new Date('2025-01-01'),
     shop: { id: shopId, name: `Shop ${shopId}` },
   };
 }
@@ -384,6 +389,8 @@ describe('Preservation: GET /admin/users — visão global sem restrição de sh
     const prisma = await getMockedPrisma();
     vi.mocked(prisma.$transaction).mockResolvedValue([allUsers, allUsers.length]);
     vi.mocked(prisma.professional.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.userPlan.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.appointment.groupBy).mockResolvedValue([]);
 
     const response = await request(app)
       .get('/admin/users')
@@ -417,6 +424,8 @@ describe('Preservation: GET /admin/users — visão global sem restrição de sh
         async (search) => {
           vi.mocked(prisma.$transaction).mockResolvedValue([allUsers, allUsers.length]);
           vi.mocked(prisma.professional.findMany).mockResolvedValue([]);
+          vi.mocked(prisma.userPlan.findMany).mockResolvedValue([]);
+          vi.mocked(prisma.appointment.groupBy).mockResolvedValue([]);
 
           const query: Record<string, string> = {};
           if (search) query.search = search;
@@ -444,6 +453,8 @@ describe('Preservation: GET /admin/users — visão global sem restrição de sh
     const prisma = await getMockedPrisma();
     vi.mocked(prisma.$transaction).mockResolvedValue([allUsers, allUsers.length]);
     vi.mocked(prisma.professional.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.userPlan.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.appointment.groupBy).mockResolvedValue([]);
 
     const response = await request(app)
       .get('/admin/users')

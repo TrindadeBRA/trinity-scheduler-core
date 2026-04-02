@@ -3,6 +3,28 @@ import { prisma } from '../../utils/prisma';
 import { authorize } from '../../middlewares/authorize';
 import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
 
+function computeTrialDaysRemaining(
+  createdAt: Date,
+  subscriptionStatus: string | null,
+  now?: Date
+): number | null {
+  const PAID_STATUSES = ['ACTIVE', 'CONFIRMED'];
+  if (subscriptionStatus && PAID_STATUSES.includes(subscriptionStatus)) {
+    return null;
+  }
+  const diffMs = (now ?? new Date()).getTime() - createdAt.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return Math.max(0, 30 - diffDays);
+}
+
+function computeHasPaidPlan(
+  userPlan: { planId: string; subscriptionStatus: string } | null
+): boolean {
+  if (!userPlan) return false;
+  const PAID_STATUSES = ['ACTIVE', 'CONFIRMED'];
+  return userPlan.planId !== 'FREE' && PAID_STATUSES.includes(userPlan.subscriptionStatus);
+}
+
 const router = Router();
 
 /**
@@ -178,6 +200,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
           email: true,
           role: true,
           shopId: true,
+          createdAt: true,
           shop: { select: { id: true, name: true } },
         },
       }),
@@ -189,6 +212,23 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
     const leaderShopIds = [...new Set(
       leaders.filter(l => l.role === 'leader').map(l => l.shopId)
     )];
+
+    const userIds = leaders.map(l => l.id);
+
+    const allUserPlans = userIds.length > 0
+      ? await prisma.userPlan.findMany({
+          where: { userId: { in: userIds } },
+          include: { plan: { select: { id: true, name: true } } },
+        })
+      : [];
+
+    const appointmentCounts = leaderShopIds.length > 0
+      ? await prisma.appointment.groupBy({
+          by: ['shopId'],
+          where: { shopId: { in: leaderShopIds } },
+          _count: { id: true },
+        })
+      : [];
 
     const allProfessionals = leaderShopIds.length > 0
       ? await prisma.professional.findMany({
@@ -204,8 +244,21 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
       return acc;
     }, {});
 
+    const userPlanByUserId = allUserPlans.reduce<Record<string, typeof allUserPlans[0]>>((acc, up) => {
+      acc[up.userId] = up;
+      return acc;
+    }, {});
+
+    const appointmentCountByShopId = appointmentCounts.reduce<Record<string, number>>((acc, ac) => {
+      acc[ac.shopId] = ac._count.id;
+      return acc;
+    }, {});
+
     const data = leaders.map((user) => {
       const professionals = user.role === 'leader' ? (profsByShop[user.shopId] ?? []) : [];
+      const userPlan = userPlanByUserId[user.id] ?? null;
+      const subscriptionStatus = userPlan?.subscriptionStatus ?? null;
+
       return {
         id: user.id,
         name: user.name,
@@ -214,6 +267,17 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
         shopName: user.shop.name,
         professionals,
         professionalsTotal: professionals.length,
+        // new fields
+        createdAt: user.createdAt,
+        trialDaysRemaining: computeTrialDaysRemaining(user.createdAt, subscriptionStatus),
+        hasPaidPlan: computeHasPaidPlan(userPlan),
+        plan: {
+          planId: userPlan?.planId ?? 'FREE',
+          planName: userPlan?.plan?.name ?? 'Free',
+          subscriptionStatus: userPlan?.subscriptionStatus ?? 'TRIAL',
+          subscriptionId: userPlan?.subscriptionId ?? null,
+        },
+        appointmentsCount: appointmentCountByShopId[user.shopId] ?? 0,
       };
     });
 
