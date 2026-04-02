@@ -250,12 +250,16 @@ router.delete('/subscriptions/:id', authMiddleware, authorize('leader', 'admin')
     const id = req.params.id as string;
     const userId = req.user!.id;
 
+    console.log(`[billing] cancelling subscription ${id} for user ${userId}`);
+
     await asaasRequest('DELETE', `/subscriptions/${id}`);
 
     await prisma.userPlan.updateMany({
       where: { userId, subscriptionId: id },
       data: { subscriptionStatus: 'INACTIVE' },
     });
+
+    console.log(`[billing] subscription ${id} cancelled and marked INACTIVE`);
 
     res.json({ success: true });
   } catch (err) {
@@ -312,6 +316,8 @@ router.post('/webhook', async (req: Request, res: Response) => {
     };
 
     const externalReference = payment?.externalReference ?? subscription?.externalReference;
+
+    console.log(`[billing/webhook] event=${event} | externalReference=${externalReference} | subscriptionId=${payment?.subscription ?? subscription?.id ?? 'n/a'}`);
 
     if (!externalReference?.startsWith('kronuz:')) {
       console.warn(`[billing/webhook] externalReference inválido: ${externalReference}`);
