@@ -150,18 +150,21 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
     }
 
     // Task 1.3 — Create Asaas Customer
-    // Números com 9 dígitos (sem DDD) ou 11 dígitos = celular → mobilePhone
-    // Números com 10 dígitos = fixo → phone
     const phoneDigits = (phone ?? '').replace(/\D/g, '');
+    const cpfCnpjDigits = (cpfCnpj ?? '').replace(/\D/g, '');
     const postalCodeDigits = (postalCode ?? '').replace(/\D/g, '');
     const isMobile = phoneDigits.length === 11;
+
     let customer: { id: string };
     try {
       customer = await asaasRequest('POST', '/customers', {
         name,
-        cpfCnpj,
+        cpfCnpj: cpfCnpjDigits,
         email,
-        ...(isMobile ? { mobilePhone: phoneDigits } : { phone: phoneDigits }),
+        // Asaas exige phone (fixo) e mobilePhone (celular) separados
+        // Enviamos em ambos para garantir que pelo menos um seja aceito
+        phone: phoneDigits,
+        ...(isMobile ? { mobilePhone: phoneDigits } : {}),
         postalCode: postalCodeDigits,
       }) as { id: string };
     } catch (err) {
@@ -171,27 +174,47 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
     }
 
     // Task 1.4 — Create Asaas Subscription (credit card endpoint — trailing slash)
+    // Sanitizar creditCard: garantir que number contenha apenas dígitos
+    const sanitizedCreditCard = {
+      holderName: creditCard!.holderName!,
+      number: (creditCard!.number ?? '').replace(/\D/g, ''),
+      expiryMonth: creditCard!.expiryMonth!,
+      expiryYear: creditCard!.expiryYear!,
+      ccv: creditCard!.ccv!,
+    };
+
+    const holderCpfCnpjDigits = (creditCardHolderInfo!.cpfCnpj ?? '').replace(/\D/g, '');
+    const holderPostalCodeDigits = (creditCardHolderInfo!.postalCode ?? '').replace(/\D/g, '');
+
+    const subscriptionPayload = {
+      customer: customer.id,
+      billingType: 'CREDIT_CARD',
+      value: plan.price / 100,
+      nextDueDate: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
+      cycle: 'MONTHLY',
+      description: `Assinatura ${plan.id}`,
+      externalReference: buildExternalReference(userId, planId!),
+      creditCard: sanitizedCreditCard,
+      creditCardHolderInfo: {
+        name: creditCardHolderInfo!.name!,
+        email: creditCardHolderInfo!.email!,
+        cpfCnpj: holderCpfCnpjDigits,
+        postalCode: holderPostalCodeDigits,
+        addressNumber: creditCardHolderInfo!.addressNumber!,
+        phone: phoneDigits,
+        ...(isMobile ? { mobilePhone: phoneDigits } : {}),
+      },
+      remoteIp: req.body.remoteIp,
+    };
+
+    console.log('[billing] subscription payload (card number redacted):', JSON.stringify({
+      ...subscriptionPayload,
+      creditCard: { ...subscriptionPayload.creditCard, number: '****', ccv: '***' },
+    }));
+
     let sub: { id: string };
     try {
-      sub = await asaasRequest('POST', '/subscriptions/', {
-        customer: customer.id,
-        billingType: 'CREDIT_CARD',
-        value: plan.price / 100,
-        nextDueDate: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
-        cycle: 'MONTHLY',
-        externalReference: buildExternalReference(userId, planId!),
-        creditCard: req.body.creditCard,
-        creditCardHolderInfo: {
-          name: creditCardHolderInfo!.name,
-          email: creditCardHolderInfo!.email,
-          cpfCnpj: creditCardHolderInfo!.cpfCnpj,
-          postalCode: (creditCardHolderInfo!.postalCode ?? '').replace(/\D/g, ''),
-          addressNumber: creditCardHolderInfo!.addressNumber,
-          phone: phoneDigits,
-          ...(isMobile ? { mobilePhone: phoneDigits } : {}),
-        },
-        remoteIp: req.body.remoteIp,
-      }) as { id: string };
+      sub = await asaasRequest('POST', '/subscriptions/', subscriptionPayload) as { id: string };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       res.status(502).json({ error: 'ASAAS_ERROR', message });
