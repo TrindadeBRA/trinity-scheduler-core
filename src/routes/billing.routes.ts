@@ -27,7 +27,7 @@ async function asaasRequest(method: string, path: string, body?: unknown) {
   if (!res.ok) {
     const text = await res.text();
     let parsed: { errors?: { code?: string; description?: string }[]; message?: string } = {};
-    try { parsed = JSON.parse(text); } catch { /* mantém vazio */ }
+    try { parsed = JSON.parse(text); } catch { /* noop */ }
 
     const firstError = parsed?.errors?.[0];
     const friendlyMessage = firstError?.description ?? parsed?.message ?? `Asaas API error ${res.status}`;
@@ -80,8 +80,6 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
       email,
       phone,
       postalCode,
-      addressNumber,
-      remoteIp,
       creditCard,
       creditCardHolderInfo,
     } = req.body as {
@@ -110,7 +108,6 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
       };
     };
 
-    // Task 1.1 — Validate required top-level fields
     const missingTopLevel = (['planId', 'name', 'cpfCnpj', 'email', 'phone', 'postalCode', 'addressNumber', 'remoteIp'] as const)
       .find(field => !req.body[field]);
     if (missingTopLevel) {
@@ -118,7 +115,6 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
       return;
     }
 
-    // Validate creditCard object and its required fields
     if (!creditCard) {
       res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Campo creditCard é obrigatório' });
       return;
@@ -130,7 +126,6 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
       return;
     }
 
-    // Validate creditCardHolderInfo object and its required fields
     if (!creditCardHolderInfo) {
       res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Campo creditCardHolderInfo é obrigatório' });
       return;
@@ -142,14 +137,12 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
       return;
     }
 
-    // Task 1.2 — Plan lookup
     const plan = await prisma.plan.findUnique({ where: { id: planId! } });
     if (!plan) {
       res.status(404).json({ error: 'NOT_FOUND', message: 'Plano não encontrado' });
       return;
     }
 
-    // Task 1.3 — Create Asaas Customer
     const phoneDigits = (phone ?? '').replace(/\D/g, '');
     const cpfCnpjDigits = (cpfCnpj ?? '').replace(/\D/g, '');
     const postalCodeDigits = (postalCode ?? '').replace(/\D/g, '');
@@ -161,8 +154,6 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
         name,
         cpfCnpj: cpfCnpjDigits,
         email,
-        // Asaas exige phone (fixo) e mobilePhone (celular) separados
-        // Enviamos em ambos para garantir que pelo menos um seja aceito
         phone: phoneDigits,
         ...(isMobile ? { mobilePhone: phoneDigits } : {}),
         postalCode: postalCodeDigits,
@@ -173,8 +164,6 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
       return;
     }
 
-    // Task 1.4 — Create Asaas Subscription (credit card endpoint — trailing slash)
-    // Sanitizar creditCard: garantir que number contenha apenas dígitos
     const sanitizedCreditCard = {
       holderName: creditCard!.holderName!,
       number: (creditCard!.number ?? '').replace(/\D/g, ''),
@@ -221,11 +210,10 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
       return;
     }
 
-    // Task 1.5 — Upsert UserPlan with PENDING status — webhook PAYMENT_CONFIRMED will activate it
     await prisma.userPlan.upsert({
       where: { userId },
-      update: { subscriptionId: sub.id, planId: planId! },
-      create: { userId, planId: planId!, subscriptionId: sub.id },
+      update: { subscriptionId: sub.id, planId: planId!, subscriptionStatus: 'ACTIVE' },
+      create: { userId, planId: planId!, subscriptionId: sub.id, subscriptionStatus: 'ACTIVE' },
     });
 
     res.json({ subscriptionId: sub.id });
@@ -260,9 +248,7 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
 router.delete('/subscriptions/:id', authMiddleware, authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-
     await asaasRequest('DELETE', `/subscriptions/${id}`);
-
     res.json({ success: true });
   } catch (err) {
     next(err);
@@ -324,7 +310,6 @@ router.post('/webhook', async (req: Request, res: Response) => {
       return res.status(200).json({ received: true });
     }
 
-    // Parse: "kronuz:{userId}:{planId}"
     const [, userId, planId] = externalReference.split(':', 3);
 
     if (event === 'PAYMENT_CONFIRMED') {
@@ -343,11 +328,9 @@ router.post('/webhook', async (req: Request, res: Response) => {
         data: { subscriptionStatus: 'INACTIVE' },
       });
     }
-    // Unknown events are silently ignored
 
     return res.status(200).json({ received: true });
   } catch (err) {
-    // Always return 200 to avoid Asaas retry loops
     console.error('[billing/webhook] Error processing webhook:', err);
     return res.status(200).json({ received: true });
   }
