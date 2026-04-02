@@ -82,10 +82,19 @@ router.post('/users/me/plan', authorize('leader', 'admin'), async (req: Request,
     const userId = req.user!.id;
     const { planId } = req.body;
 
+    const isFree = planId === 'FREE';
+
     const userPlan = await prisma.userPlan.upsert({
       where: { userId },
-      create: { userId, planId },
-      update: { planId },
+      create: {
+        userId,
+        planId,
+        ...(isFree ? { subscriptionStatus: 'TRIAL', subscriptionId: null } : {}),
+      },
+      update: {
+        planId,
+        ...(isFree ? { subscriptionStatus: 'TRIAL', subscriptionId: null } : {}),
+      },
     });
 
     res.json({

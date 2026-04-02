@@ -247,8 +247,16 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
  */
 router.delete('/subscriptions/:id', authMiddleware, authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
+    const userId = req.user!.id;
+
     await asaasRequest('DELETE', `/subscriptions/${id}`);
+
+    await prisma.userPlan.updateMany({
+      where: { userId, subscriptionId: id },
+      data: { subscriptionStatus: 'INACTIVE' },
+    });
+
     res.json({ success: true });
   } catch (err) {
     next(err);
