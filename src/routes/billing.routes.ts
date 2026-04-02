@@ -339,7 +339,10 @@ router.post('/webhook', async (req: Request, res: Response) => {
     } else if (event === 'PAYMENT_OVERDUE' || event === 'SUBSCRIPTION_DELETED' || event === 'SUBSCRIPTION_INACTIVATED') {
       await prisma.userPlan.updateMany({
         where: { userId },
-        data: { subscriptionStatus: 'INACTIVE' },
+        data: {
+          subscriptionStatus: 'INACTIVE',
+          ...(event === 'SUBSCRIPTION_DELETED' ? { planId: 'FREE', subscriptionId: null } : {}),
+        },
       });
     }
 
