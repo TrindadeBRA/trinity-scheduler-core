@@ -230,6 +230,14 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
         })
       : [];
 
+    const unitCounts = leaderShopIds.length > 0
+      ? await prisma.unit.groupBy({
+          by: ['shopId'],
+          where: { shopId: { in: leaderShopIds } },
+          _count: { id: true },
+        })
+      : [];
+
     const allProfessionals = leaderShopIds.length > 0
       ? await prisma.professional.findMany({
           where: { shopId: { in: leaderShopIds }, deletedAt: null },
@@ -251,6 +259,11 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
 
     const appointmentCountByShopId = appointmentCounts.reduce<Record<string, number>>((acc, ac) => {
       acc[ac.shopId] = ac._count.id;
+      return acc;
+    }, {});
+
+    const unitCountByShopId = unitCounts.reduce<Record<string, number>>((acc, uc) => {
+      acc[uc.shopId] = uc._count.id;
       return acc;
     }, {});
 
@@ -278,6 +291,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
           subscriptionId: userPlan?.subscriptionId ?? null,
         },
         appointmentsCount: appointmentCountByShopId[user.shopId] ?? 0,
+        unitsCount: unitCountByShopId[user.shopId] ?? 0,
       };
     });
 
