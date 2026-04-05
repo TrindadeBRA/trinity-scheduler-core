@@ -5,8 +5,37 @@ import { AppError } from '../../utils/errors';
 
 const router = Router();
 
-// Niche validation constants
-const VALID_NICHES = ['barbearia', 'salao-beleza'] as const;
+// Niche constants — each niche maps to a visual skin (barbearia or salao-beleza)
+export const VALID_NICHES = [
+  'barbearia',
+  'salao-beleza',
+  'esmalteria',
+  'clinica-estetica',
+  'manicure',
+  'pedicure',
+  'cabeleireiro',
+] as const;
+
+export const NICHE_DISPLAY_NAMES: Record<typeof VALID_NICHES[number], string> = {
+  'barbearia': 'Barbearia',
+  'salao-beleza': 'Salão de Beleza',
+  'esmalteria': 'Esmalteria',
+  'clinica-estetica': 'Clínica de Estética',
+  'manicure': 'Manicure',
+  'pedicure': 'Pedicure',
+  'cabeleireiro': 'Cabeleireiro',
+};
+
+export const NICHE_SKIN_MAP: Record<typeof VALID_NICHES[number], 'barbearia' | 'salao-beleza'> = {
+  'barbearia': 'barbearia',
+  'salao-beleza': 'salao-beleza',
+  'esmalteria': 'salao-beleza',
+  'clinica-estetica': 'salao-beleza',
+  'manicure': 'salao-beleza',
+  'pedicure': 'salao-beleza',
+  'cabeleireiro': 'salao-beleza',
+};
+
 type Niche = typeof VALID_NICHES[number];
 
 function isValidNiche(value: unknown): value is Niche {
@@ -211,7 +240,8 @@ router.get('/shop/niches', async (req: Request, res: Response) => {
   res.json({
     niches: VALID_NICHES.map(id => ({
       id,
-      displayName: id === 'barbearia' ? 'Barbearia' : 'Salão de Beleza'
+      displayName: NICHE_DISPLAY_NAMES[id],
+      skin: NICHE_SKIN_MAP[id],
     }))
   });
 });

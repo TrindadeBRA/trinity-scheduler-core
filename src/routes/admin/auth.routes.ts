@@ -8,6 +8,7 @@ import { generateSlug, sanitizeSlug, validateSlug } from '../../utils/slug';
 import { authMiddleware } from '../../middlewares/auth';
 import { sendWelcomeLeader, sendPasswordResetEmail } from '../../utils/email';
 import { env } from '../../config/env';
+import { VALID_NICHES, NICHE_SKIN_MAP } from './shop.routes';
 
 const router = Router();
 
@@ -143,8 +144,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     const passwordHash = await hashPassword(owner.password);
 
     const result = await prisma.$transaction(async (tx) => {
-      const VALID_NICHES = ['barbearia', 'salao-beleza'];
-      const niche = shop.niche && VALID_NICHES.includes(shop.niche) ? shop.niche : 'barbearia';
+      const niche = shop.niche && VALID_NICHES.includes(shop.niche as typeof VALID_NICHES[number]) ? shop.niche : 'barbearia';
 
       const newShop = await tx.shop.create({
         data: {

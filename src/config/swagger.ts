@@ -128,7 +128,7 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
             phone: { type: 'string', nullable: true },
             email: { type: 'string', nullable: true },
             address: { type: 'string', nullable: true },
-            niche: { type: 'string', enum: ['barbearia', 'salao-beleza'], example: 'barbearia' },
+            niche: { type: 'string', enum: ['barbearia', 'salao-beleza', 'esmalteria', 'clinica-estetica', 'manicure', 'pedicure', 'cabeleireiro'], example: 'barbearia' },
             bookingBuffer: { type: 'integer', description: 'Minutos de antecedência mínima para agendamento', example: 0 },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
@@ -397,7 +397,7 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
           type: 'object',
           properties: {
             name: { type: 'string', description: 'Nome do estabelecimento ou da unidade' },
-            niche: { type: 'string', enum: ['barbearia', 'salao-beleza'] },
+            niche: { type: 'string', enum: ['barbearia', 'salao-beleza', 'esmalteria', 'clinica-estetica', 'manicure', 'pedicure', 'cabeleireiro'] },
           },
         },
         AppointmentUpdateInput: {

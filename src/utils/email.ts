@@ -12,12 +12,23 @@ const transporter = nodemailer.createTransport({
 
 
 const NICHE_COLORS: Record<string, { primary: string; accent: string; warningBg: string; warningBorder: string; warningText: string }> = {
-  barbearia:     { primary: '#EAB308', accent: '#000000', warningBg: '#1a1500', warningBorder: '#3a2e00', warningText: '#a89030' },
-  'salao-beleza':{ primary: '#EC4899', accent: '#ffffff', warningBg: '#1a0010', warningBorder: '#3a0025', warningText: '#c0507a' },
+  barbearia:        { primary: '#EAB308', accent: '#000000', warningBg: '#1a1500', warningBorder: '#3a2e00', warningText: '#a89030' },
+  'salao-beleza':   { primary: '#EC4899', accent: '#ffffff', warningBg: '#1a0010', warningBorder: '#3a0025', warningText: '#c0507a' },
+  'esmalteria':     { primary: '#EC4899', accent: '#ffffff', warningBg: '#1a0010', warningBorder: '#3a0025', warningText: '#c0507a' },
+  'clinica-estetica':{ primary: '#EC4899', accent: '#ffffff', warningBg: '#1a0010', warningBorder: '#3a0025', warningText: '#c0507a' },
+  'manicure':       { primary: '#EC4899', accent: '#ffffff', warningBg: '#1a0010', warningBorder: '#3a0025', warningText: '#c0507a' },
+  'pedicure':       { primary: '#EC4899', accent: '#ffffff', warningBg: '#1a0010', warningBorder: '#3a0025', warningText: '#c0507a' },
+  'cabeleireiro':   { primary: '#EC4899', accent: '#ffffff', warningBg: '#1a0010', warningBorder: '#3a0025', warningText: '#c0507a' },
 };
 
+const FEMININE_NICHES = ['salao-beleza', 'esmalteria', 'clinica-estetica', 'manicure', 'pedicure', 'cabeleireiro'];
+const MASCULINE_NICHES = ['barbearia'];
+
 function getNicheColors(niche: string) {
-  return NICHE_COLORS[niche?.toLowerCase()] ?? NICHE_COLORS['barbearia'];
+  const lower = niche?.toLowerCase();
+  if (FEMININE_NICHES.includes(lower)) return NICHE_COLORS['salao-beleza'];
+  if (MASCULINE_NICHES.includes(lower)) return NICHE_COLORS['barbearia'];
+  return NICHE_COLORS['barbearia'];
 }
 
 export interface EmailOptions {

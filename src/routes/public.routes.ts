@@ -1,9 +1,7 @@
 import { Router, Request, Response } from 'express';
+import { VALID_NICHES, NICHE_DISPLAY_NAMES, NICHE_SKIN_MAP } from './admin/shop.routes';
 
 const router = Router();
-
-// Niche validation constants (deve estar sincronizado com admin/shop.routes.ts)
-const VALID_NICHES = ['barbearia', 'salao-beleza'] as const;
 
 /**
  * @swagger
@@ -30,15 +28,11 @@ const VALID_NICHES = ['barbearia', 'salao-beleza'] as const;
  *                         type: string
  */
 router.get('/niches', async (req: Request, res: Response) => {
-  const nicheMap: Record<string, string> = {
-    'barbearia': 'Barbearia',
-    'salao-beleza': 'Salão de Beleza'
-  };
-
   res.json({
     niches: VALID_NICHES.map(id => ({
       id,
-      displayName: nicheMap[id] || id
+      displayName: NICHE_DISPLAY_NAMES[id],
+      skin: NICHE_SKIN_MAP[id],
     }))
   });
 });
