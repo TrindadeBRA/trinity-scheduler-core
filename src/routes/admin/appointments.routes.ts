@@ -4,8 +4,79 @@ import { authorize } from '../../middlewares/authorize';
 import { createAppointment, cancelAppointment } from '../../services/appointment.service';
 import { AppError } from '../../utils/errors';
 import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
+import { getAvailableSlots } from '../../services/availability.service';
 
 const router = Router();
+
+/**
+ * @swagger
+ * /admin/appointments/availability:
+ *   get:
+ *     tags: [Admin Appointments]
+ *     summary: Obter slots disponíveis para um profissional numa data
+ *     description: Retorna lista de slots com disponibilidade para agendamento.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: professionalId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: '2024-12-25'
+ *       - in: query
+ *         name: serviceDuration
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *     responses:
+ *       200:
+ *         description: Lista de slots com disponibilidade
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   time:
+ *                     type: string
+ *                   available:
+ *                     type: boolean
+ */
+router.get('/appointments/availability', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const shopId = req.shopId || req.user?.shopId;
+    if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
+
+    const { professionalId, date, serviceDuration } = req.query;
+    if (!professionalId || !date) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'professionalId e date são obrigatórios');
+    }
+
+    // Professional só pode ver a própria disponibilidade
+    const effectiveProfessionalId = req.user?.role === 'professional'
+      ? req.user.professionalId
+      : professionalId as string;
+
+    const slots = await getAvailableSlots(
+      shopId,
+      effectiveProfessionalId ?? null,
+      date as string,
+      serviceDuration ? parseInt(serviceDuration as string, 10) : 30,
+    );
+
+    res.json(slots);
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * @swagger
