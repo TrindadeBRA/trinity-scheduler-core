@@ -30,6 +30,7 @@ import adminUploadRouter from './admin/upload.routes';
 import adminSystemRouter from './admin/system.routes';
 import adminUsersRouter from './admin/users.routes';
 import { adminPlansRouter, plansRouter } from './admin/plans.routes';
+import adminTimeBlocksRouter from './admin/timeblocks.routes';
 import billingRouter from './billing.routes';
 
 export function mountRoutes(app: Express): void {
@@ -60,6 +61,7 @@ export function mountRoutes(app: Express): void {
   app.use('/admin', authMiddleware, tenantFilter, adminUnitsRouter);
   app.use('/admin', authMiddleware, tenantFilter, adminDashboardRouter);
   app.use('/admin', authMiddleware, tenantFilter, adminRevenueRouter);
+  app.use('/admin', authMiddleware, tenantFilter, adminTimeBlocksRouter);
   app.use('/admin', authMiddleware, tenantFilter, adminUploadRouter);
   app.use('/admin/system', adminSystemRouter);
   // Admin-only routes (sem tenantFilter — admin não pertence a um shop)

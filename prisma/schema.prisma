@@ -26,6 +26,7 @@ model Shop {
   units         Unit[]
   appointments  Appointment[]
   shopHours     ShopHour[]
+  timeBlocks    TimeBlock[]
 }
 
 model User {
@@ -105,6 +106,7 @@ model Professional {
   unit              Unit?              @relation(fields: [unitId], references: [id])
   workingHours      WorkingHour[]
   appointments      Appointment[]
+  timeBlocks        TimeBlock[]
   user              User?
   professionalUnits ProfessionalUnit[]
 }
@@ -217,6 +219,23 @@ model ProfessionalUnit {
   unit         Unit         @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
   @@unique([professionalId, unitId])
+}
+
+model TimeBlock {
+  id             String   @id @default(uuid())
+  shopId         String
+  professionalId String
+  date           String
+  startTime      String
+  duration       Int
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  shop         Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, date])
+  @@index([professionalId, date])
 }
 
 enum SubscriptionStatus {

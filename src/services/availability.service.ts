@@ -119,8 +119,21 @@ async function getSlotsForProfessional(
     select: { time: true, duration: true },
   });
 
-  // Remove slots com conflito
+  // Remove slots com conflito de agendamentos
   slots = slots.filter((s) => !slotConflicts(s, serviceDuration, appointments));
+
+  // Busca bloqueios de horário
+  const timeBlocks = await prisma.timeBlock.findMany({
+    where: { shopId, professionalId, date },
+    select: { startTime: true, duration: true },
+  });
+
+  // Remove slots que colidem com algum bloqueio
+  if (timeBlocks.length > 0) {
+    slots = slots.filter(
+      (s) => !slotConflicts(s, serviceDuration, timeBlocks.map((tb) => ({ time: tb.startTime, duration: tb.duration })))
+    );
+  }
 
   return slots;
 }
