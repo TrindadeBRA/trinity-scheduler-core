@@ -105,7 +105,7 @@ router.put('/shop', authorize('leader', 'admin'), async (req: Request, res: Resp
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
 
-    const { name, phone, email, address, bookingBuffer, niche } = req.body;
+    const { name, phone, email, address, bookingBuffer, niche, logoUrl } = req.body;
 
     // Validate niche if provided
     if (niche !== undefined && !isValidNiche(niche)) {
@@ -123,6 +123,7 @@ router.put('/shop', authorize('leader', 'admin'), async (req: Request, res: Resp
         ...(phone !== undefined && { phone }),
         ...(email !== undefined && { email }),
         ...(address !== undefined && { address }),
+        ...(logoUrl !== undefined && { logoUrl }),
         ...(bookingBuffer !== undefined && { bookingBuffer: Number(bookingBuffer) }),
         ...(niche !== undefined && { niche }),
       },

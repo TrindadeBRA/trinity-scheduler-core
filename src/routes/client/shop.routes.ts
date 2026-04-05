@@ -64,7 +64,7 @@ router.get('/info', async (req: Request, res: Response, next: NextFunction) => {
           name: true,
           street: true, number: true, complement: true,
           district: true, city: true, state: true,
-          shop: { select: { niche: true } },
+          shop: { select: { niche: true, logoUrl: true } },
         },
       });
       if (unit) {
@@ -78,6 +78,7 @@ router.get('/info', async (req: Request, res: Response, next: NextFunction) => {
         return res.json({
           name: unit.name,
           niche: unit.shop.niche,
+          logoUrl: unit.shop.logoUrl,
           address: addressParts.length > 0 ? addressParts.join(', ') : null,
         });
       }
@@ -85,7 +86,7 @@ router.get('/info', async (req: Request, res: Response, next: NextFunction) => {
 
     const shop = await prisma.shop.findUnique({
       where: { id: shopId },
-      select: { name: true, niche: true },
+      select: { name: true, niche: true, logoUrl: true },
     });
 
     if (!shop) throw new AppError(404, 'NOT_FOUND', 'Estabelecimento não encontrado');
