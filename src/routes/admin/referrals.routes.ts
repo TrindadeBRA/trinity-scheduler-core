@@ -101,7 +101,7 @@ router.get('/referrals', authorize('admin'), async (req: Request, res: Response,
  */
 router.get('/referrals/:id', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const referral = await prisma.referral.findUnique({ where: { id } });
     if (!referral) throw new AppError(404, 'NOT_FOUND', 'Referência não encontrada');
     res.json(referral);
@@ -223,7 +223,7 @@ router.post('/referrals', authorize('admin'), async (req: Request, res: Response
  */
 router.put('/referrals/:id', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { code, commissionType, commissionValue } = req.body;
 
     const existing = await prisma.referral.findUnique({ where: { id } });
@@ -276,7 +276,7 @@ router.put('/referrals/:id', authorize('admin'), async (req: Request, res: Respo
  */
 router.delete('/referrals/:id', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const existing = await prisma.referral.findUnique({ where: { id } });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Referência não encontrada');
     await prisma.referral.delete({ where: { id } });
