@@ -223,7 +223,7 @@ describe('Bug Condition: GET /admin/appointments leaks shop-B data', () => {
             { nil: undefined }
           ),
           status: fc.option(
-            fc.constantFrom('confirmed', 'cancelled', 'completed', 'noshow'),
+            fc.constantFrom('confirmed', 'cancelled', 'completed'),
             { nil: undefined }
           ),
         }),

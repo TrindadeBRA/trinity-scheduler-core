@@ -102,7 +102,7 @@ router.get('/appointments/availability', authorize('leader', 'professional', 'ad
  *         name: status
  *         schema:
  *           type: string
- *           enum: [confirmed, cancelled, completed, noshow]
+ *           enum: [confirmed, cancelled, completed]
  *       - in: query
  *         name: serviceId
  *         schema:

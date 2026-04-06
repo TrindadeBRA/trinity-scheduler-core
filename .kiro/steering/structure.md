@@ -174,10 +174,8 @@ src/
 ```typescript
 enum Role { admin, leader, professional }
 enum ServiceType { service, addon }
-enum AppointmentStatus { confirmed, cancelled, completed, noshow }
+enum AppointmentStatus { confirmed, cancelled, completed }
 ```
-
-> **Atenção**: O status `noshow` no banco é `noshow` (sem underscore), não `no_show`. O schema Swagger documenta incorretamente como `no_show`.
 
 ## Key Conventions
 

@@ -33,7 +33,7 @@ Endpoints protegidos por autenticação JWT para usuários administrativos.
 - Filtros: date, professionalId, status (suporta multiplos separados por virgula), serviceId, clientId, unitId, search (busca textual em cliente/servico/profissional), startDate/endDate
 - Ordenacao: date, time, clientName, serviceName, professionalName, status, price, duration
 - Professional ve apenas os proprios agendamentos (filtro automatico)
-- Status reais no banco: confirmed, cancelled, completed, noshow (sem underscore)
+- Status reais no banco: confirmed, cancelled, completed
 - Criacao via appointment.service.ts com auto-atribuicao de profissional quando professionalId e null
 
 #### Gestao de Clientes
@@ -202,7 +202,7 @@ PostgreSQL com Prisma ORM. Entidades principais:
 - WorkingHour: Horarios de trabalho por dia (com lunchStart/lunchEnd)
 - Client: Clientes finais, unique por (shopId, phone)
 - Service: Servicos e addons (preco em centavos)
-- Appointment: Status: confirmed, cancelled, completed, noshow
+- Appointment: Status: confirmed, cancelled, completed
 - AppointmentAddon: Adicionais do agendamento (cascade delete)
 - Unit: Unidades fisicas com slug unico global
 - ProfessionalUnit: Alocacao many-to-many profissional e unidade

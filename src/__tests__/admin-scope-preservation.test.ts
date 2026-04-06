@@ -200,7 +200,7 @@ describe('Preservation: role=leader — where.shopId is always applied', () => {
             { nil: undefined }
           ),
           status: fc.option(
-            fc.constantFrom('confirmed', 'cancelled', 'completed', 'noshow'),
+            fc.constantFrom('confirmed', 'cancelled', 'completed'),
             { nil: undefined }
           ),
         }),
@@ -313,7 +313,7 @@ describe('Preservation: role=professional — where.professionalId is always app
             { nil: undefined }
           ),
           status: fc.option(
-            fc.constantFrom('confirmed', 'cancelled', 'completed', 'noshow'),
+            fc.constantFrom('confirmed', 'cancelled', 'completed'),
             { nil: undefined }
           ),
         }),

@@ -367,7 +367,7 @@ async function main() {
             currentFuture.setDate(currentFuture.getDate() + 1);
           }
 
-          // Agendamentos passados (últimos 3 meses) — status completed/cancelled/noshow
+          // Agendamentos passados (últimos 3 meses) — status completed/cancelled
           const current = new Date(startDate);
           const today = new Date();
 
@@ -389,7 +389,14 @@ async function main() {
                 let status: string;
                 let cancelReason: string | null = null;
 
-                if (rand < 0.12) {
+                // Se é hoje e o horário ainda não passou, não pode ser completed
+                const isToday = current.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
+                const currentTime = today.toTimeString().slice(0, 5);
+                const isFutureSlot = isToday && slot >= currentTime;
+
+                if (isFutureSlot) {
+                  status = 'confirmed';
+                } else if (rand < 0.12) {
                   status = 'cancelled';
                   const reasons = [
                     'Cliente desistiu',
@@ -400,7 +407,8 @@ async function main() {
                   ];
                   cancelReason = reasons[Math.floor(Math.random() * reasons.length)];
                 } else if (rand < 0.15) {
-                  status = 'noshow';
+                  status = 'cancelled';
+                  cancelReason = 'Não compareceu';
                 } else {
                   status = 'completed';
                 }
@@ -425,6 +433,61 @@ async function main() {
           }
 
           await prisma.appointment.createMany({ data: appointments });
+
+          // ─── Adicionais aleatórios em ~30% dos agendamentos ─────────────
+          const addonServices = await prisma.service.findMany({
+            where: { shopId, type: 'addon' },
+            select: { id: true, name: true, price: true, duration: true },
+          });
+
+          if (addonServices.length > 0) {
+            const createdAppointments = await prisma.appointment.findMany({
+              where: { shopId },
+              select: { id: true },
+            });
+
+            const addonRecords: Array<{
+              appointmentId: string;
+              serviceId: string;
+              name: string;
+              duration: number;
+              price: number;
+            }> = [];
+
+            for (const appt of createdAppointments) {
+              const rand = Math.random();
+              if (rand < 0.15) {
+                // ~15% com 2 adicionais
+                const shuffled = [...addonServices].sort(() => Math.random() - 0.5);
+                const picked = shuffled.slice(0, Math.min(2, shuffled.length));
+                for (const addon of picked) {
+                  addonRecords.push({
+                    appointmentId: appt.id,
+                    serviceId: addon.id,
+                    name: addon.name,
+                    duration: addon.duration,
+                    price: addon.price,
+                  });
+                }
+              } else if (rand < 0.35) {
+                // ~20% com 1 adicional
+                const addon = addonServices[Math.floor(Math.random() * addonServices.length)];
+                addonRecords.push({
+                  appointmentId: appt.id,
+                  serviceId: addon.id,
+                  name: addon.name,
+                  duration: addon.duration,
+                  price: addon.price,
+                });
+              }
+              // ~65% sem adicional
+            }
+
+            if (addonRecords.length > 0) {
+              await prisma.appointmentAddon.createMany({ data: addonRecords });
+              console.log(`Seed: ${addonRecords.length} adicionais vinculados a agendamentos.`);
+            }
+          }
 
           const confirmedCount = appointments.filter((a) => a.status === 'confirmed').length;
           const completedCount = appointments.filter((a) => a.status === 'completed').length;

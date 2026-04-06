@@ -280,8 +280,8 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
             price: { type: 'integer', description: 'Preço total em centavos (serviço + addons)' },
             status: {
               type: 'string',
-              enum: ['confirmed', 'cancelled', 'completed', 'noshow'],
-              description: 'Status do agendamento. Atenção: no banco é "noshow" (sem underscore)',
+              enum: ['confirmed', 'cancelled', 'completed'],
+              description: 'Status do agendamento',
             },
             cancelReason: { type: 'string', nullable: true },
             notes: { type: 'string', nullable: true },
@@ -406,8 +406,8 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
           properties: {
             status: {
               type: 'string',
-              enum: ['confirmed', 'cancelled', 'completed', 'noshow'],
-              description: 'Novo status. Atenção: usar "noshow" (sem underscore)',
+              enum: ['confirmed', 'cancelled', 'completed'],
+              description: 'Novo status',
             },
             notes: { type: 'string' },
             cancelReason: { type: 'string' },
