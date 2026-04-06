@@ -409,7 +409,7 @@ router.post('/appointments', authorize('leader', 'professional', 'admin'), async
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-router.put('/appointments/:id', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.put('/appointments/:id', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
@@ -423,6 +423,17 @@ router.put('/appointments/:id', authorize('leader', 'admin'), async (req: Reques
       include: { addons: { select: { price: true } } },
     });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Agendamento não encontrado');
+
+    // Profissional só pode atualizar os próprios agendamentos
+    if (req.user?.role === 'professional') {
+      if (existing.professionalId !== req.user.professionalId) {
+        throw new AppError(403, 'FORBIDDEN', 'Profissional só pode alterar os próprios agendamentos');
+      }
+      // Profissional não pode transferir agendamento para outro profissional
+      if (professionalId && professionalId !== req.user.professionalId) {
+        throw new AppError(403, 'FORBIDDEN', 'Profissional só pode reagendar para si mesmo');
+      }
+    }
 
     // Detecta transições de status que afetam totalSpent
     const becomingCompleted = status === 'completed' && existing.status !== 'completed';
