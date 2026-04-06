@@ -165,14 +165,13 @@ router.post('/referrals', authorize('admin'), async (req: Request, res: Response
     const existing = await prisma.referral.findUnique({ where: { code: normalizedCode } });
     if (existing) throw new AppError(409, 'CONFLICT', 'Code já cadastrado');
 
-    // commissionValue já deve vir em centavos para fixed e inteiro para percentage
-    const safeValue = Math.round(Number(commissionValue));
-    if (isNaN(safeValue)) {
-      throw new AppError(400, 'VALIDATION_ERROR', 'commissionValue deve ser um número válido');
+    const parsedValue = parseInt(commissionValue, 10);
+    if (isNaN(parsedValue) || parsedValue < 0) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'commissionValue deve ser um inteiro positivo (centavos para fixed, inteiro para percentage)');
     }
 
     const referral = await prisma.referral.create({
-      data: { code: normalizedCode, commissionType, commissionValue: safeValue },
+      data: { code: normalizedCode, commissionType, commissionValue: parsedValue },
     });
 
     res.status(201).json(referral);
@@ -248,7 +247,13 @@ router.put('/referrals/:id', authorize('admin'), async (req: Request, res: Respo
     }
 
     if (commissionType !== undefined) updateData.commissionType = commissionType;
-    if (commissionValue !== undefined) updateData.commissionValue = Math.round(Number(commissionValue));
+    if (commissionValue !== undefined) {
+      const parsedValue = parseInt(commissionValue, 10);
+      if (isNaN(parsedValue) || parsedValue < 0) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'commissionValue deve ser um inteiro positivo');
+      }
+      updateData.commissionValue = parsedValue;
+    }
 
     const referral = await prisma.referral.update({ where: { id }, data: updateData });
     res.json(referral);
