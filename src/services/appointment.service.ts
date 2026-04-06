@@ -104,6 +104,7 @@ export async function createAppointment(data: {
 export async function cancelAppointment(appointmentId: string, reason: string): Promise<void> {
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
+    include: { addons: true },
   });
 
   if (!appointment) throw new AppError(404, 'NOT_FOUND', 'Agendamento não encontrado');
@@ -111,15 +112,33 @@ export async function cancelAppointment(appointmentId: string, reason: string): 
     throw new AppError(409, 'CONFLICT', 'Agendamento já está cancelado');
   }
 
-  await prisma.appointment.update({
-    where: { id: appointmentId },
-    data: { status: 'cancelled', cancelReason: reason },
-  });
+  const wasCompleted = appointment.status === 'completed';
+
+  const operations = [
+    prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { status: 'cancelled', cancelReason: reason },
+    }),
+  ];
+
+  if (wasCompleted) {
+    const addonTotal = appointment.addons.reduce((sum, a) => sum + a.price, 0);
+    const totalPrice = appointment.price + addonTotal;
+    operations.push(
+      prisma.client.update({
+        where: { id: appointment.clientId },
+        data: { totalSpent: { decrement: totalPrice } },
+      }) as any,
+    );
+  }
+
+  await prisma.$transaction(operations);
 }
 
 export async function completeAppointment(appointmentId: string): Promise<void> {
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
+    include: { addons: true },
   });
 
   if (!appointment) throw new AppError(404, 'NOT_FOUND', 'Agendamento não encontrado');
@@ -130,8 +149,20 @@ export async function completeAppointment(appointmentId: string): Promise<void> 
     throw new AppError(409, 'CONFLICT', 'Não é possível concluir um agendamento cancelado');
   }
 
-  await prisma.appointment.update({
-    where: { id: appointmentId },
-    data: { status: 'completed' },
-  });
+  const addonTotal = appointment.addons.reduce((sum, a) => sum + a.price, 0);
+  const totalPrice = appointment.price + addonTotal;
+
+  await prisma.$transaction([
+    prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { status: 'completed' },
+    }),
+    prisma.client.update({
+      where: { id: appointment.clientId },
+      data: {
+        totalSpent: { increment: totalPrice },
+        lastVisit: new Date(appointment.date + 'T12:00:00Z'),
+      },
+    }),
+  ]);
 }

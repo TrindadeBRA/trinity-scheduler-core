@@ -493,6 +493,34 @@ async function main() {
           const completedCount = appointments.filter((a) => a.status === 'completed').length;
           const cancelledCount = appointments.filter((a) => a.status === 'cancelled').length;
           console.log(`Seed: ${appointments.length} agendamentos criados (${confirmedCount} confirmados, ${completedCount} concluídos, ${cancelledCount} cancelados).`);
+
+          // ─── Atualizar totalSpent e lastVisit dos clientes ──────────────
+          const completedAppointments = await prisma.appointment.findMany({
+            where: { shopId, status: 'completed' },
+            include: { addons: true },
+          });
+
+          const clientTotals = new Map<string, { spent: number; lastDate: string }>();
+          for (const appt of completedAppointments) {
+            const addonTotal = appt.addons.reduce((sum, a) => sum + a.price, 0);
+            const total = appt.price + addonTotal;
+            const prev = clientTotals.get(appt.clientId);
+            if (!prev) {
+              clientTotals.set(appt.clientId, { spent: total, lastDate: appt.date });
+            } else {
+              prev.spent += total;
+              if (appt.date > prev.lastDate) prev.lastDate = appt.date;
+            }
+          }
+
+          for (const [clientId, { spent, lastDate }] of clientTotals) {
+            await prisma.client.update({
+              where: { id: clientId },
+              data: { totalSpent: spent, lastVisit: new Date(lastDate + 'T12:00:00Z') },
+            });
+          }
+
+          console.log(`Seed: totalSpent e lastVisit atualizados para ${clientTotals.size} clientes.`);
         }
       }
     } else {

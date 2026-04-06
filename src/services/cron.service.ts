@@ -1,40 +1,119 @@
 import cron from 'node-cron';
 import { prisma } from '../utils/prisma';
 
+const TAG = '[CRON]';
+const ts = () => new Date().toISOString();
+
 /**
- * Atualiza o status dos agendamentos de dias anteriores para 'completed'.
- * Exportada para permitir execução manual via endpoint admin.
+ * Marca como 'completed' todos os agendamentos confirmados de dias anteriores a hoje.
  */
 export async function completePastAppointments(): Promise<{ count: number; beforeDate: string }> {
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = new Date().toISOString().split('T')[0];
 
-  const result = await prisma.appointment.updateMany({
-    where: {
-      date: { lt: todayStr },
-      status: 'confirmed',
-    },
+  console.log(`${TAG} ${ts()} completePastAppointments — buscando agendamentos confirmados anteriores a ${todayStr}...`);
+
+  const toComplete = await prisma.appointment.findMany({
+    where: { date: { lt: todayStr }, status: 'confirmed' },
+    select: { id: true },
+  });
+
+  if (toComplete.length === 0) {
+    console.log(`${TAG} ${ts()} completePastAppointments — nenhum agendamento pendente para concluir.`);
+    return { count: 0, beforeDate: todayStr };
+  }
+
+  const ids = toComplete.map((a) => a.id);
+
+  await prisma.appointment.updateMany({
+    where: { id: { in: ids } },
     data: { status: 'completed' },
   });
 
-  console.log(`[CRON] ${new Date().toISOString()} - ${result.count} agendamentos de dias anteriores marcados como concluídos`);
-  return { count: result.count, beforeDate: todayStr };
+  console.log(`${TAG} ${ts()} completePastAppointments — ${ids.length} agendamento(s) marcado(s) como concluído(s) (corte: < ${todayStr}).`);
+  return { count: ids.length, beforeDate: todayStr };
 }
 
 /**
- * Inicializa os cron jobs da aplicação
+ * Recalcula totalSpent e lastVisit de todos os clientes com base nos agendamentos completed.
+ * Usa uma query agregada e atualiza cada cliente numa transaction.
+ */
+export async function syncClientTotals(): Promise<{ clientsUpdated: number }> {
+  console.log(`${TAG} ${ts()} syncClientTotals — agregando totais de agendamentos concluídos...`);
+
+  const aggregated = await prisma.appointment.groupBy({
+    by: ['clientId'],
+    where: { status: 'completed' },
+    _sum: { price: true },
+    _max: { date: true },
+  });
+
+  if (aggregated.length === 0) {
+    console.log(`${TAG} ${ts()} syncClientTotals — nenhum agendamento concluído encontrado, nada a atualizar.`);
+    return { clientsUpdated: 0 };
+  }
+
+  // Soma addons por cliente (groupBy não suporta relações)
+  const addonTotals = await prisma.appointmentAddon.groupBy({
+    by: ['appointmentId'],
+    _sum: { price: true },
+    where: { appointment: { status: 'completed' } },
+  });
+
+  const addonByAppointment = new Map(addonTotals.map((a) => [a.appointmentId, a._sum.price ?? 0]));
+
+  const completedAppointments = await prisma.appointment.findMany({
+    where: { status: 'completed' },
+    select: { id: true, clientId: true },
+  });
+
+  const clientAddonMap = new Map<string, number>();
+  for (const appt of completedAppointments) {
+    const addonPrice = addonByAppointment.get(appt.id) ?? 0;
+    clientAddonMap.set(appt.clientId, (clientAddonMap.get(appt.clientId) ?? 0) + addonPrice);
+  }
+
+  await prisma.$transaction(
+    aggregated.map((row) => {
+      const serviceTotal = row._sum.price ?? 0;
+      const addonTotal = clientAddonMap.get(row.clientId) ?? 0;
+      return prisma.client.update({
+        where: { id: row.clientId },
+        data: {
+          totalSpent: serviceTotal + addonTotal,
+          lastVisit: row._max.date ? new Date(row._max.date + 'T12:00:00Z') : undefined,
+        },
+      });
+    }),
+  );
+
+  const totalCents = aggregated.reduce((s, r) => s + (r._sum.price ?? 0), 0) +
+    Array.from(clientAddonMap.values()).reduce((s, v) => s + v, 0);
+
+  console.log(
+    `${TAG} ${ts()} syncClientTotals — ${aggregated.length} cliente(s) atualizado(s) ` +
+    `(${completedAppointments.length} agendamentos concluídos, ${addonTotals.length} addon(s), ` +
+    `total geral: R$ ${(totalCents / 100).toFixed(2)}).`,
+  );
+
+  return { clientsUpdated: aggregated.length };
+}
+
+/**
+ * Inicializa os cron jobs da aplicação.
  */
 export function initCronJobs() {
-  // Executa todo dia às 00:00
   cron.schedule('0 0 * * *', async () => {
+    console.log(`${TAG} ${ts()} ── Rotina diária iniciada ──`);
     try {
       await completePastAppointments();
+      await syncClientTotals();
+      console.log(`${TAG} ${ts()} ── Rotina diária finalizada com sucesso ──`);
     } catch (error) {
-      console.error('[CRON] Erro ao atualizar agendamentos:', error);
+      console.error(`${TAG} ${ts()} ── Rotina diária falhou ──`, error);
     }
   }, {
     timezone: 'America/Sao_Paulo',
   });
 
-  console.log('[CRON] Jobs agendados com sucesso');
+  console.log(`${TAG} Cron agendado — todo dia às 00:00 (America/Sao_Paulo)`);
 }

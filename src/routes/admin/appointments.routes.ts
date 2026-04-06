@@ -413,26 +413,59 @@ router.put('/appointments/:id', authorize('leader', 'admin'), async (req: Reques
     const where: Record<string, unknown> = { id };
     if (shopId) where.shopId = shopId;
 
-    const existing = await prisma.appointment.findFirst({ where });
+    const existing = await prisma.appointment.findFirst({
+      where,
+      include: { addons: { select: { price: true } } },
+    });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Agendamento não encontrado');
 
-    const updated = await prisma.appointment.update({
-      where: { id },
-      data: {
-        ...(status !== undefined && { status }),
-        ...(notes !== undefined && { notes }),
-        ...(cancelReason !== undefined && { cancelReason }),
-        ...(date !== undefined && { date }),
-        ...(time !== undefined && { time }),
-        ...(professionalId !== undefined && { professionalId }),
-      },
-      include: {
-        service: { select: { name: true } },
-        professional: { select: { name: true } },
-        client: { select: { name: true, phone: true } },
-        addons: true,
-      },
-    });
+    // Detecta transições de status que afetam totalSpent
+    const becomingCompleted = status === 'completed' && existing.status !== 'completed';
+    const leavingCompleted = status !== undefined && status !== 'completed' && existing.status === 'completed';
+
+    const addonTotal = existing.addons.reduce((sum, a) => sum + a.price, 0);
+    const totalPrice = existing.price + addonTotal;
+
+    const operations: any[] = [
+      prisma.appointment.update({
+        where: { id },
+        data: {
+          ...(status !== undefined && { status }),
+          ...(notes !== undefined && { notes }),
+          ...(cancelReason !== undefined && { cancelReason }),
+          ...(date !== undefined && { date }),
+          ...(time !== undefined && { time }),
+          ...(professionalId !== undefined && { professionalId }),
+        },
+        include: {
+          service: { select: { name: true } },
+          professional: { select: { name: true } },
+          client: { select: { name: true, phone: true } },
+          addons: true,
+        },
+      }),
+    ];
+
+    if (becomingCompleted) {
+      operations.push(
+        prisma.client.update({
+          where: { id: existing.clientId },
+          data: {
+            totalSpent: { increment: totalPrice },
+            lastVisit: new Date(existing.date + 'T12:00:00Z'),
+          },
+        }),
+      );
+    } else if (leavingCompleted) {
+      operations.push(
+        prisma.client.update({
+          where: { id: existing.clientId },
+          data: { totalSpent: { decrement: totalPrice } },
+        }),
+      );
+    }
+
+    const [updated] = await prisma.$transaction(operations);
 
     res.json({
       ...updated,

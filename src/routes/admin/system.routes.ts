@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../../middlewares/auth';
 import { authorize } from '../../middlewares/authorize';
-import { completePastAppointments } from '../../services/cron.service';
+import { completePastAppointments, syncClientTotals } from '../../services/cron.service';
 
 const router = Router();
 
@@ -55,11 +55,13 @@ router.post(
   async (req, res, next) => {
     try {
       const { count, beforeDate } = await completePastAppointments();
+      const { clientsUpdated } = await syncClientTotals();
       res.json({
         success: true,
-        message: `${count} agendamentos de dias anteriores marcados como concluídos`,
+        message: `${count} agendamentos concluídos, ${clientsUpdated} clientes atualizados`,
         count,
         beforeDate,
+        clientsUpdated,
       });
     } catch (error) {
       next(error);
