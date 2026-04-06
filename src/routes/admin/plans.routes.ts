@@ -137,3 +137,120 @@ plansRouter.get('/', authorize('leader', 'admin'), async (req: Request, res: Res
     next(err);
   }
 });
+
+
+/**
+ * @swagger
+ * /plans/me:
+ *   get:
+ *     tags: [Plans]
+ *     summary: Retornar o plano da shop do usuário autenticado
+ *     description: >
+ *       Para leader/admin retorna o próprio plano.
+ *       Para professional retorna o plano do dono da shop (leader/admin).
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Plano e status de assinatura
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserPlan'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+plansRouter.get('/me', authorize('leader', 'admin', 'professional'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    let targetUserId = req.user!.id;
+
+    if (req.user!.role === 'professional') {
+      const shopId = req.shopId || req.user!.shopId;
+      const owner = await prisma.user.findFirst({
+        where: { shopId, role: { in: ['admin', 'leader'] } },
+        select: { id: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!owner) {
+        return res.json({ planId: 'FREE', subscriptionId: null, subscriptionStatus: 'TRIAL', createdAt: null });
+      }
+      targetUserId = owner.id;
+    }
+
+    const userPlan = await prisma.userPlan.findUnique({ where: { userId: targetUserId } });
+
+    if (!userPlan) {
+      const user = await prisma.user.findUnique({ where: { id: targetUserId }, select: { createdAt: true } });
+      return res.json({ planId: 'FREE', subscriptionId: null, subscriptionStatus: 'TRIAL', createdAt: user?.createdAt ?? null });
+    }
+
+    res.json({
+      planId: userPlan.planId,
+      subscriptionId: userPlan.subscriptionId ?? null,
+      subscriptionStatus: userPlan.subscriptionStatus,
+      createdAt: userPlan.createdAt,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @swagger
+ * /plans/me:
+ *   post:
+ *     tags: [Plans]
+ *     summary: Criar ou atualizar o plano do usuário autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - planId
+ *             properties:
+ *               planId:
+ *                 type: string
+ *                 enum: [FREE, PREMIUM, PRO, ADMIN]
+ *     responses:
+ *       200:
+ *         description: Plano criado ou atualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserPlan'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+plansRouter.post('/me', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.id;
+    const { planId } = req.body;
+
+    const isFree = planId === 'FREE';
+
+    const userPlan = await prisma.userPlan.upsert({
+      where: { userId },
+      create: {
+        userId,
+        planId,
+        ...(isFree ? { subscriptionStatus: 'TRIAL', subscriptionId: null } : {}),
+      },
+      update: {
+        planId,
+        ...(isFree ? { subscriptionStatus: 'TRIAL', subscriptionId: null } : {}),
+      },
+    });
+
+    res.json({
+      planId: userPlan.planId,
+      subscriptionId: userPlan.subscriptionId ?? null,
+      subscriptionStatus: userPlan.subscriptionStatus,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
