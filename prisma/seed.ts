@@ -111,25 +111,43 @@ async function main() {
     console.log(`Seed: unidade criada — ${unit.name}`);
 
     const professionalsData = [
-      { name: 'Carlos Silva', phone: '11987654321', email: 'carlos@exemplo.com', specialties: ['Corte', 'Barba'] },
-      { name: 'Ana Oliveira', phone: '11987654322', email: 'ana@exemplo.com', specialties: ['Corte', 'Coloração'] },
-      { name: 'Rafael Costa', phone: '11987654323', email: 'rafael@exemplo.com', specialties: ['Barba', 'Pigmentação'] },
+      { name: 'Carlos Silva', phone: '11987654321', specialties: ['Corte', 'Barba'] },
+      { name: 'Ana Oliveira', phone: '11987654322', specialties: ['Corte', 'Coloração'] },
+      { name: 'Rafael Costa', phone: '11987654323', specialties: ['Barba', 'Pigmentação'] },
     ];
 
+    const emailDomain = ADMIN_EMAIL.split('@')[1]; // ex: thetrinityweb.com.br
+
     for (const prof of professionalsData) {
+      const firstName = prof.name.split(' ')[0].toLowerCase(); // carlos, ana, rafael
+      const profEmail = `${firstName}@${emailDomain}`;
+
       const professional = await prisma.professional.create({
         data: {
           shopId,
           unitId,
           name: prof.name,
           phone: prof.phone,
-          email: prof.email,
+          email: profEmail,
           specialties: prof.specialties,
           active: true,
         },
       });
       professionalIds.push(professional.id);
-      console.log(`Seed: profissional criado — ${professional.name}`);
+
+      // Cria credenciais de login (User) para o profissional
+      await prisma.user.create({
+        data: {
+          shopId,
+          name: prof.name,
+          email: profEmail,
+          passwordHash,
+          role: 'professional',
+          professionalId: professional.id,
+        },
+      });
+
+      console.log(`Seed: profissional criado — ${professional.name} (login: ${profEmail})`);
     }
   }
 
