@@ -40,12 +40,17 @@ vi.mock('../utils/prisma', () => ({
       findFirst: vi.fn(),
       count: vi.fn(),
       create: vi.fn(),
+      aggregate: vi.fn(),
+      groupBy: vi.fn(),
     },
     client: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
       count: vi.fn(),
       create: vi.fn(),
+    },
+    service: {
+      findUnique: vi.fn(),
     },
     $transaction: vi.fn(),
   },
@@ -341,11 +346,15 @@ describe('Bug Condition: GET /admin/dashboard/stats leaks shop-B metrics', () =>
      */
     const prisma = await getMockedPrisma();
 
-    // Dashboard stats uses findMany (not $transaction)
+    // Dashboard stats uses aggregate (not findMany)
     // Fixed code passes where.shopId = SHOP_A, so simulate Prisma filtering
     const shopAAppointments = mixedAppointments.filter((a) => a.shopId === SHOP_A);
-    vi.mocked(prisma.appointment.findMany).mockResolvedValue(shopAAppointments as never);
-    vi.mocked(prisma.client.count).mockResolvedValue(shopAAppointments.length); // shop-A count only
+    vi.mocked(prisma.appointment.aggregate).mockResolvedValue({
+      _sum: { price: shopAAppointments.reduce((s, a) => s + a.price, 0) },
+      _count: { id: shopAAppointments.length },
+    } as never);
+    vi.mocked(prisma.appointment.groupBy).mockResolvedValue([]);
+    vi.mocked(prisma.client.count).mockResolvedValue(shopAAppointments.length);
 
     const response = await request(app)
       .get('/admin/dashboard/stats')
@@ -375,7 +384,11 @@ describe('Bug Condition: GET /admin/dashboard/stats leaks shop-B metrics', () =>
           const appointmentsForDate = mixedAppointments
             .filter((a) => a.shopId === SHOP_A)
             .map((a) => ({ ...a, date }));
-          vi.mocked(prisma.appointment.findMany).mockResolvedValue(appointmentsForDate as never);
+          vi.mocked(prisma.appointment.aggregate).mockResolvedValue({
+            _sum: { price: appointmentsForDate.reduce((s, a) => s + a.price, 0) },
+            _count: { id: appointmentsForDate.length },
+          } as never);
+          vi.mocked(prisma.appointment.groupBy).mockResolvedValue([]);
           vi.mocked(prisma.client.count).mockResolvedValue(appointmentsForDate.length);
 
           const response = await request(app)

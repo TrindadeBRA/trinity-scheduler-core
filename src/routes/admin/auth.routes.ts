@@ -129,7 +129,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
  */
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { owner, shop, professional } = req.body;
+    const { owner, shop, professional, ref } = req.body;
 
     if (!owner?.name || !owner?.email || !owner?.password) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Dados do proprietário são obrigatórios (name, email, password)');
@@ -142,6 +142,13 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     }
 
     const passwordHash = await hashPassword(owner.password);
+
+    // Resolve referral antes da transação
+    let referralId: string | undefined;
+    if (ref) {
+      const referral = await prisma.referral.findFirst({ where: { code: (ref as string).toLowerCase() } });
+      if (referral) referralId = referral.id;
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       const niche = shop.niche && VALID_NICHES.includes(shop.niche as typeof VALID_NICHES[number]) ? shop.niche : 'barbearia';
@@ -235,6 +242,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
           passwordHash,
           role: 'leader',
           professionalId: newProfessional.id,
+          ...(referralId && { referralId }),
         },
       });
 

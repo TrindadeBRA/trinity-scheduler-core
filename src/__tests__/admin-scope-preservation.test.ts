@@ -48,6 +48,9 @@ vi.mock('../utils/prisma', () => ({
     userPlan: {
       findMany: vi.fn(),
     },
+    unit: {
+      groupBy: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -391,6 +394,7 @@ describe('Preservation: GET /admin/users — visão global sem restrição de sh
     vi.mocked(prisma.professional.findMany).mockResolvedValue([]);
     vi.mocked(prisma.userPlan.findMany).mockResolvedValue([]);
     vi.mocked(prisma.appointment.groupBy).mockResolvedValue([]);
+    vi.mocked(prisma.unit.groupBy).mockResolvedValue([]);
 
     const response = await request(app)
       .get('/admin/users')
@@ -426,6 +430,7 @@ describe('Preservation: GET /admin/users — visão global sem restrição de sh
           vi.mocked(prisma.professional.findMany).mockResolvedValue([]);
           vi.mocked(prisma.userPlan.findMany).mockResolvedValue([]);
           vi.mocked(prisma.appointment.groupBy).mockResolvedValue([]);
+          vi.mocked(prisma.unit.groupBy).mockResolvedValue([]);
 
           const query: Record<string, string> = {};
           if (search) query.search = search;
@@ -455,6 +460,7 @@ describe('Preservation: GET /admin/users — visão global sem restrição de sh
     vi.mocked(prisma.professional.findMany).mockResolvedValue([]);
     vi.mocked(prisma.userPlan.findMany).mockResolvedValue([]);
     vi.mocked(prisma.appointment.groupBy).mockResolvedValue([]);
+    vi.mocked(prisma.unit.groupBy).mockResolvedValue([]);
 
     const response = await request(app)
       .get('/admin/users')

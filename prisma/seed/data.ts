@@ -4,10 +4,10 @@ export const WEEKDAYS_PT = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'S
 export const ALL_DAYS_PT = [...WEEKDAYS_PT, 'Domingo'];
 
 export const PLANS = [
-  { id: 'FREE',    name: 'Free',    price: 0,    unitLimit: 1,  professionalLimit: 3  },
-  { id: 'PREMIUM', name: 'Premium', price: 2999, unitLimit: 2,  professionalLimit: 8 },
-  { id: 'PRO',     name: 'Pro',     price: 9999, unitLimit: 5, professionalLimit: 30 },
-  { id: 'ADMIN',   name: 'Admin',   price: 0,    unitLimit: -1, professionalLimit: -1 },
+  { id: 'FREE',    name: 'Free',    price: 0,    packagePrice: 0,     unitLimit: 1,  professionalLimit: 3  },
+  { id: 'PREMIUM', name: 'Premium', price: 2999, packagePrice: 3999,  unitLimit: 2,  professionalLimit: 8  },
+  { id: 'PRO',     name: 'Pro',     price: 9999, packagePrice: 12999, unitLimit: 5,  professionalLimit: 30 },
+  { id: 'ADMIN',   name: 'Admin',   price: 0,    packagePrice: 0,     unitLimit: -1, professionalLimit: -1 },
 ];
 
 export const UNITS = [

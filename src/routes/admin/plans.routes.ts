@@ -80,7 +80,7 @@ adminPlansRouter.get('/plans', authorize('admin'), async (req: Request, res: Res
 adminPlansRouter.patch('/plans/:planId', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const planId = req.params.planId as string;
-    const { price, unitLimit, professionalLimit } = req.body;
+    const { price, unitLimit, professionalLimit, packagePrice } = req.body;
 
     const existing = await prisma.plan.findUnique({ where: { id: planId } });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Plano não encontrado');
@@ -89,6 +89,7 @@ adminPlansRouter.patch('/plans/:planId', authorize('admin'), async (req: Request
     if (price !== undefined) data.price = price;
     if (unitLimit !== undefined) data.unitLimit = unitLimit;
     if (professionalLimit !== undefined) data.professionalLimit = professionalLimit;
+    if (packagePrice !== undefined) data.packagePrice = packagePrice;
 
     if (Object.keys(data).length === 0) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Nenhum campo para atualizar');
@@ -172,7 +173,7 @@ plansRouter.get('/me', authorize('leader', 'admin', 'professional'), async (req:
         orderBy: { createdAt: 'asc' },
       });
       if (!owner) {
-        return res.json({ planId: 'FREE', subscriptionId: null, subscriptionStatus: 'TRIAL', createdAt: null });
+        return res.json({ planId: 'FREE', subscriptionId: null, subscriptionStatus: 'TRIAL', isPackage: false, packageExpiresAt: null, createdAt: null });
       }
       targetUserId = owner.id;
     }
@@ -181,13 +182,15 @@ plansRouter.get('/me', authorize('leader', 'admin', 'professional'), async (req:
 
     if (!userPlan) {
       const user = await prisma.user.findUnique({ where: { id: targetUserId }, select: { createdAt: true } });
-      return res.json({ planId: 'FREE', subscriptionId: null, subscriptionStatus: 'TRIAL', createdAt: user?.createdAt ?? null });
+      return res.json({ planId: 'FREE', subscriptionId: null, subscriptionStatus: 'TRIAL', isPackage: false, packageExpiresAt: null, createdAt: user?.createdAt ?? null });
     }
 
     res.json({
       planId: userPlan.planId,
       subscriptionId: userPlan.subscriptionId ?? null,
       subscriptionStatus: userPlan.subscriptionStatus,
+      isPackage: userPlan.isPackage,
+      packageExpiresAt: userPlan.packageExpiresAt ?? null,
       createdAt: userPlan.createdAt,
     });
   } catch (err) {

@@ -99,6 +99,28 @@ export async function syncClientTotals(): Promise<{ clientsUpdated: number }> {
 }
 
 /**
+ * Expira pacotes mensais cujo packageExpiresAt já passou,
+ * revertendo o UserPlan para o plano FREE.
+ */
+export async function expirePackages(): Promise<{ count: number }> {
+  const now = new Date();
+  const result = await prisma.userPlan.updateMany({
+    where: {
+      isPackage: true,
+      packageExpiresAt: { lt: now },
+    },
+    data: {
+      planId: 'FREE',
+      isPackage: false,
+      packageExpiresAt: null,
+      subscriptionStatus: 'TRIAL',
+    },
+  });
+  console.log(`[cron] expirePackages: ${result.count} pacotes expirados processados`);
+  return { count: result.count };
+}
+
+/**
  * Inicializa os cron jobs da aplicação.
  */
 export function initCronJobs() {
@@ -107,6 +129,7 @@ export function initCronJobs() {
     try {
       await completePastAppointments();
       await syncClientTotals();
+      await expirePackages();
       console.log(`${TAG} ${ts()} ── Rotina diária finalizada com sucesso ──`);
     } catch (error) {
       console.error(`${TAG} ${ts()} ── Rotina diária falhou ──`, error);

@@ -31,6 +31,7 @@ import adminSystemRouter from './admin/system.routes';
 import adminUsersRouter from './admin/users.routes';
 import { adminPlansRouter, plansRouter } from './admin/plans.routes';
 import adminTimeBlocksRouter from './admin/timeblocks.routes';
+import adminReferralsRouter from './admin/referrals.routes';
 import billingRouter from './billing.routes';
 
 export function mountRoutes(app: Express): void {
@@ -67,6 +68,7 @@ export function mountRoutes(app: Express): void {
   // Admin-only routes (sem tenantFilter — admin não pertence a um shop)
   app.use('/admin', authMiddleware, adminUsersRouter);
   app.use('/admin', authMiddleware, adminPlansRouter);
+  app.use('/admin', authMiddleware, adminReferralsRouter);
 
   // Plans route (accessible by leader and admin)
   app.use('/plans', authMiddleware, plansRouter);

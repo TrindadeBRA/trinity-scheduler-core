@@ -22,7 +22,11 @@ async function main() {
 
   // ─── Planos ─────────────────────────────────────────────────────────────
   for (const plan of PLANS) {
-    await prisma.plan.upsert({ where: { id: plan.id }, update: {}, create: plan });
+    await prisma.plan.upsert({
+      where: { id: plan.id },
+      update: { packagePrice: plan.packagePrice },
+      create: plan,
+    });
   }
   console.log('Seed: planos OK.');
 
