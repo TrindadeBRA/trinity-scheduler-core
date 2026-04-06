@@ -194,7 +194,7 @@ router.post('/subscribe', authMiddleware, authorize('leader', 'admin'), async (r
       value: plan.price / 100,
       nextDueDate: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
       cycle: 'MONTHLY',
-      description: `Assinatura ${plan.id}`,
+      description: `Kronuz - Assinatura ${plan.id}`,
       externalReference: buildExternalReference(userId, planId!),
       creditCard: sanitizedCreditCard,
       creditCardHolderInfo: {
@@ -392,7 +392,7 @@ router.post('/package', authMiddleware, authorize('leader', 'admin'), async (req
       billingType,
       value: plan.packagePrice / 100,
       dueDate,
-      description: `Pacote 30 dias - ${planId}`,
+      description: `Kronuz - Pacote 30 dias - ${planId}`,
       externalReference: buildPackageExternalReference(userId, planId!),
     };
 
