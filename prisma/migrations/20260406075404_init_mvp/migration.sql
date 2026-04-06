@@ -35,6 +35,7 @@ CREATE TABLE "User" (
     "passwordHash" TEXT NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'leader',
     "professionalId" TEXT,
+    "referralId" TEXT,
     "resetToken" TEXT,
     "resetTokenExp" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -202,6 +203,7 @@ CREATE TABLE "Plan" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "price" INTEGER NOT NULL,
+    "packagePrice" INTEGER NOT NULL DEFAULT 0,
     "unitLimit" INTEGER NOT NULL,
     "professionalLimit" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -217,10 +219,24 @@ CREATE TABLE "UserPlan" (
     "planId" TEXT NOT NULL,
     "subscriptionId" TEXT,
     "subscriptionStatus" "SubscriptionStatus" NOT NULL DEFAULT 'TRIAL',
+    "isPackage" BOOLEAN NOT NULL DEFAULT false,
+    "packageExpiresAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "UserPlan_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Referral" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "commissionType" TEXT NOT NULL,
+    "commissionValue" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Referral_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -253,11 +269,17 @@ CREATE INDEX "TimeBlock_professionalId_date_idx" ON "TimeBlock"("professionalId"
 -- CreateIndex
 CREATE UNIQUE INDEX "UserPlan_userId_key" ON "UserPlan"("userId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "Referral_code_key" ON "Referral"("code");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_referralId_fkey" FOREIGN KEY ("referralId") REFERENCES "Referral"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ShopHour" ADD CONSTRAINT "ShopHour_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
