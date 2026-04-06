@@ -54,30 +54,34 @@ router.get('/dashboard/stats', authorize('leader', 'professional', 'admin'), asy
 
     if (!date) throw new AppError(400, 'VALIDATION_ERROR', 'Query param date é obrigatório');
 
-    const where: Record<string, unknown> = { date };
-    if (shopId) where.shopId = shopId;
-    if (unitId) where.unitId = unitId;
+    // Últimos 30 dias para faturamento e agendamentos
+    const thirtyDaysAgo = new Date(date as string + 'T00:00:00.000Z');
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().slice(0, 10);
 
-    // Apply professional filter
-    const filteredWhere = applyProfessionalFilter(where, {
+    const last30Where: Record<string, unknown> = {
+      date: { gte: thirtyDaysAgoStr, lte: date as string },
+      status: { in: ['confirmed', 'completed'] },
+    };
+    if (shopId) last30Where.shopId = shopId;
+    if (unitId) last30Where.unitId = unitId;
+
+    const filteredLast30 = applyProfessionalFilter(last30Where, {
       role: req.user?.role || 'leader',
       professionalId: req.user?.professionalId
     });
 
-    const appointments = await prisma.appointment.findMany({
-      where: filteredWhere,
-      include: { service: { select: { name: true } } },
+    // Revenue + count dos últimos 30 dias (uma única query aggregate)
+    const revenueAgg = await prisma.appointment.aggregate({
+      where: filteredLast30,
+      _sum: { price: true },
+      _count: { id: true },
     });
 
-    // Revenue: soma dos preços de confirmed/completed (em centavos)
-    const revenue = appointments
-      .filter((a) => a.status === 'confirmed' || a.status === 'completed')
-      .reduce((sum, a) => sum + a.price, 0);
-
-    const appointmentCount = appointments.length;
+    const revenue = revenueAgg._sum.price ?? 0;
+    const appointmentCount = revenueAgg._count.id;
 
     // Top service: serviço com mais agendamentos nos últimos 7 dias
-    // Usa groupBy para ser leve — uma única query com COUNT
     const sevenDaysAgo = new Date(date as string + 'T00:00:00.000Z');
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
@@ -113,44 +117,19 @@ router.get('/dashboard/stats', authorize('leader', 'professional', 'admin'), asy
       });
       topService = svc?.name ?? null;
 
-      const revenueAgg = await prisma.appointment.aggregate({
+      const topSvcRevenueAgg = await prisma.appointment.aggregate({
         where: { ...topServiceFilteredWhere, serviceId: topServiceGroup[0].serviceId },
         _sum: { price: true },
       });
-      topServiceRevenue = revenueAgg._sum.price ?? 0;
+      topServiceRevenue = topSvcRevenueAgg._sum.price ?? 0;
     }
 
-    // New clients: clientes criados na data
-    const dateStart = new Date(date as string + 'T00:00:00.000Z');
-    const dateEnd = new Date(date as string + 'T23:59:59.999Z');
+    // Total de clientes do shop
+    const totalClientsWhere: Record<string, unknown> = {};
+    if (shopId) totalClientsWhere.shopId = shopId;
+    const totalClients = await prisma.client.count({ where: totalClientsWhere });
 
-    // For professionals, count only clients who made their first appointment with this professional
-    let newClients = 0;
-    if (req.user?.role === 'professional' && req.user?.professionalId) {
-      // Get unique client IDs from appointments on this date for this professional
-      const clientIds = appointments.map(a => a.clientId);
-      const uniqueClientIds = [...new Set(clientIds)];
-      
-      // Count how many of these clients had their first appointment with this professional on this date
-      for (const clientId of uniqueClientIds) {
-        const firstAppointment = await prisma.appointment.findFirst({
-          where: { clientId, professionalId: req.user.professionalId },
-          orderBy: { createdAt: 'asc' }
-        });
-        if (firstAppointment && firstAppointment.date === date) {
-          newClients++;
-        }
-      }
-    } else {
-      // For admin/leader, count all new clients in the shop
-      const newClientsWhere: Record<string, unknown> = {
-        createdAt: { gte: dateStart, lte: dateEnd },
-      };
-      if (shopId) newClientsWhere.shopId = shopId;
-      newClients = await prisma.client.count({ where: newClientsWhere });
-    }
-
-    res.json({ revenue, appointmentCount, topService, topServiceCount, topServiceRevenue, newClients });
+    res.json({ revenue, appointmentCount, topService, topServiceCount, topServiceRevenue, totalClients });
   } catch (err) {
     next(err);
   }
