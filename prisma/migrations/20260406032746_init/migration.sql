@@ -5,7 +5,7 @@ CREATE TYPE "Role" AS ENUM ('admin', 'leader', 'professional');
 CREATE TYPE "ServiceType" AS ENUM ('service', 'addon');
 
 -- CreateEnum
-CREATE TYPE "AppointmentStatus" AS ENUM ('confirmed', 'cancelled', 'completed', 'noshow');
+CREATE TYPE "AppointmentStatus" AS ENUM ('confirmed', 'cancelled', 'completed');
 
 -- CreateEnum
 CREATE TYPE "SubscriptionStatus" AS ENUM ('TRIAL', 'ACTIVE', 'CONFIRMED', 'INACTIVE');
@@ -17,6 +17,7 @@ CREATE TABLE "Shop" (
     "phone" TEXT,
     "email" TEXT,
     "address" TEXT,
+    "logoUrl" TEXT,
     "niche" TEXT NOT NULL DEFAULT 'barbearia',
     "bookingBuffer" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -183,6 +184,20 @@ CREATE TABLE "ProfessionalUnit" (
 );
 
 -- CreateTable
+CREATE TABLE "TimeBlock" (
+    "id" TEXT NOT NULL,
+    "shopId" TEXT NOT NULL,
+    "professionalId" TEXT NOT NULL,
+    "date" TEXT NOT NULL,
+    "startTime" TEXT NOT NULL,
+    "duration" INTEGER NOT NULL,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TimeBlock_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Plan" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -228,6 +243,12 @@ CREATE UNIQUE INDEX "Unit_slug_key" ON "Unit"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ProfessionalUnit_professionalId_unitId_key" ON "ProfessionalUnit"("professionalId", "unitId");
+
+-- CreateIndex
+CREATE INDEX "TimeBlock_shopId_date_idx" ON "TimeBlock"("shopId", "date");
+
+-- CreateIndex
+CREATE INDEX "TimeBlock_professionalId_date_idx" ON "TimeBlock"("professionalId", "date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "UserPlan_userId_key" ON "UserPlan"("userId");
@@ -282,6 +303,12 @@ ALTER TABLE "ProfessionalUnit" ADD CONSTRAINT "ProfessionalUnit_professionalId_f
 
 -- AddForeignKey
 ALTER TABLE "ProfessionalUnit" ADD CONSTRAINT "ProfessionalUnit_unitId_fkey" FOREIGN KEY ("unitId") REFERENCES "Unit"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TimeBlock" ADD CONSTRAINT "TimeBlock_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TimeBlock" ADD CONSTRAINT "TimeBlock_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "UserPlan" ADD CONSTRAINT "UserPlan_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
