@@ -92,12 +92,14 @@ router.delete('/timeblocks/:id', authorize('leader', 'professional', 'admin'), a
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
 
+    const blockId = req.params.id as string;
+
     const existing = await prisma.timeBlock.findFirst({
-      where: { id: req.params.id, shopId },
+      where: { id: blockId, shopId },
     });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Bloqueio não encontrado');
 
-    await prisma.timeBlock.delete({ where: { id: req.params.id } });
+    await prisma.timeBlock.delete({ where: { id: blockId } });
     res.status(204).send();
   } catch (err) {
     next(err);
