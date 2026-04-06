@@ -319,6 +319,7 @@ async function main() {
             clientId: string;
             serviceId: string;
             professionalId: string;
+            unitId: string;
             date: string;
             time: string;
             duration: number;
@@ -352,6 +353,7 @@ async function main() {
                   clientId,
                   serviceId: svc.id,
                   professionalId: profId,
+                  unitId,
                   date: currentFuture.toISOString().slice(0, 10),
                   time: slot,
                   duration: svc.duration,
@@ -408,6 +410,7 @@ async function main() {
                   clientId,
                   serviceId: svc.id,
                   professionalId: profId,
+                  unitId,
                   date: current.toISOString().slice(0, 10),
                   time: slot,
                   duration: svc.duration,

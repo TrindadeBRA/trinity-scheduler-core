@@ -76,16 +76,49 @@ router.get('/dashboard/stats', authorize('leader', 'professional', 'admin'), asy
 
     const appointmentCount = appointments.length;
 
-    // Top service: serviço com mais agendamentos
-    const serviceCount: Record<string, { name: string; count: number }> = {};
-    for (const a of appointments) {
-      if (!serviceCount[a.serviceId]) {
-        serviceCount[a.serviceId] = { name: a.service.name, count: 0 };
-      }
-      serviceCount[a.serviceId].count++;
+    // Top service: serviço com mais agendamentos nos últimos 7 dias
+    // Usa groupBy para ser leve — uma única query com COUNT
+    const sevenDaysAgo = new Date(date as string + 'T00:00:00.000Z');
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
+
+    const topServiceWhere: Record<string, unknown> = {
+      date: { gte: sevenDaysAgoStr, lte: date as string },
+      status: { in: ['confirmed', 'completed'] },
+    };
+    if (shopId) topServiceWhere.shopId = shopId;
+    if (unitId) topServiceWhere.unitId = unitId;
+
+    const topServiceFilteredWhere = applyProfessionalFilter(topServiceWhere, {
+      role: req.user?.role || 'leader',
+      professionalId: req.user?.professionalId
+    });
+
+    const topServiceGroup = await prisma.appointment.groupBy({
+      by: ['serviceId'],
+      where: topServiceFilteredWhere,
+      _count: { serviceId: true },
+      orderBy: { _count: { serviceId: 'desc' } },
+      take: 1,
+    });
+
+    let topService: string | null = null;
+    let topServiceCount = 0;
+    let topServiceRevenue = 0;
+    if (topServiceGroup.length > 0) {
+      topServiceCount = topServiceGroup[0]._count.serviceId;
+      const svc = await prisma.service.findUnique({
+        where: { id: topServiceGroup[0].serviceId },
+        select: { name: true },
+      });
+      topService = svc?.name ?? null;
+
+      const revenueAgg = await prisma.appointment.aggregate({
+        where: { ...topServiceFilteredWhere, serviceId: topServiceGroup[0].serviceId },
+        _sum: { price: true },
+      });
+      topServiceRevenue = revenueAgg._sum.price ?? 0;
     }
-    const topServiceEntry = Object.values(serviceCount).sort((a, b) => b.count - a.count)[0];
-    const topService = topServiceEntry?.name || null;
 
     // New clients: clientes criados na data
     const dateStart = new Date(date as string + 'T00:00:00.000Z');
@@ -117,7 +150,7 @@ router.get('/dashboard/stats', authorize('leader', 'professional', 'admin'), asy
       newClients = await prisma.client.count({ where: newClientsWhere });
     }
 
-    res.json({ revenue, appointmentCount, topService, newClients });
+    res.json({ revenue, appointmentCount, topService, topServiceCount, topServiceRevenue, newClients });
   } catch (err) {
     next(err);
   }
