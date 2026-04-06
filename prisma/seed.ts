@@ -40,6 +40,8 @@ async function main() {
   let shopId: string;
   let unitId: string;
   let professionalIds: string[] = [];
+  // Mapa profId → { lunchStart, lunchEnd } para horários individuais
+  const profLunchMap = new Map<string, { lunchStart: string; lunchEnd: string }>();
 
   if (existing) {
     console.log('Seed: admin já existe. Reutilizando dados existentes.');
@@ -110,22 +112,48 @@ async function main() {
 
     console.log(`Seed: unidade criada — ${unit.name}`);
 
+    // ─── Segunda unidade ──────────────────────────────────────────────────
+    const unit2 = await prisma.unit.create({
+      data: {
+        shopId,
+        name:     'Unidade Jardim',
+        slug:     'unidade-jardim',
+        phone:    '11912345679',
+        zipcode:  '13801400',
+        street:   'Av. Brasil',
+        number:   '310',
+        district: 'Jardim Paulista',
+        city:     'Mogi Mirim',
+        state:    'SP',
+      },
+    });
+    const unit2Id = unit2.id;
+
+    console.log(`Seed: unidade criada — ${unit2.name}`);
+
+    // Profissionais com horários de almoço diferentes entre si
     const professionalsData = [
-      { name: 'Carlos Silva', phone: '11987654321', specialties: ['Corte', 'Barba'] },
-      { name: 'Ana Oliveira', phone: '11987654322', specialties: ['Corte', 'Coloração'] },
-      { name: 'Rafael Costa', phone: '11987654323', specialties: ['Barba', 'Pigmentação'] },
+      // Unidade Centro
+      { name: 'Carlos Silva',   phone: '11987654321', specialties: ['Corte', 'Barba'],        unitId, lunchStart: '12:00', lunchEnd: '13:00' },
+      { name: 'Ana Oliveira',   phone: '11987654322', specialties: ['Corte', 'Coloração'],     unitId, lunchStart: '13:00', lunchEnd: '14:00' },
+      { name: 'Rafael Costa',   phone: '11987654323', specialties: ['Barba', 'Pigmentação'],   unitId, lunchStart: '11:30', lunchEnd: '12:30' },
+      // Unidade Jardim
+      { name: 'Juliana Mendes', phone: '11987654324', specialties: ['Corte', 'Hidratação'],    unitId: unit2Id, lunchStart: '12:30', lunchEnd: '13:30' },
+      { name: 'Pedro Almeida',  phone: '11987654325', specialties: ['Corte', 'Barba', 'Sobrancelha'], unitId: unit2Id, lunchStart: '11:00', lunchEnd: '12:00' },
     ];
 
     const emailDomain = ADMIN_EMAIL.split('@')[1]; // ex: thetrinityweb.com.br
 
+    // Mapa profId → { lunchStart, lunchEnd } para usar na seção de working hours
+
     for (const prof of professionalsData) {
-      const firstName = prof.name.split(' ')[0].toLowerCase(); // carlos, ana, rafael
+      const firstName = prof.name.split(' ')[0].toLowerCase();
       const profEmail = `${firstName}@${emailDomain}`;
 
       const professional = await prisma.professional.create({
         data: {
           shopId,
-          unitId,
+          unitId: prof.unitId,
           name: prof.name,
           phone: prof.phone,
           email: profEmail,
@@ -134,6 +162,7 @@ async function main() {
         },
       });
       professionalIds.push(professional.id);
+      profLunchMap.set(professional.id, { lunchStart: prof.lunchStart, lunchEnd: prof.lunchEnd });
 
       // Cria credenciais de login (User) para o profissional
       await prisma.user.create({
@@ -190,13 +219,30 @@ async function main() {
   console.log('Seed: horários da shop — seg–sex 09:00–18:00, sáb 09:00–14:00, dom fechado.');
 
   // ─── Disponibilidade dos profissionais ────────────────────────────────────
-  // Mesmos dias da shop, com horário de almoço nos dias úteis
+  // Mesmos dias da shop, com horário de almoço individual nos dias úteis
   if (professionalIds.length > 0) {
-    for (const profId of professionalIds) {
+    // Almoços padrão escalonados para profissionais existentes sem mapa
+    const defaultLunches = ['12:00-13:00', '13:00-14:00', '11:30-12:30', '12:30-13:30', '11:00-12:00'];
+
+    for (let i = 0; i < professionalIds.length; i++) {
+      const profId = professionalIds[i];
       const oldWorkingHours = await prisma.workingHour.findMany({ where: { professionalId: profId } });
       const hasOldEnglishWorkingDays = oldWorkingHours.some((h) => !ALL_DAYS_PT.includes(h.day));
       if (hasOldEnglishWorkingDays) {
         await prisma.workingHour.deleteMany({ where: { professionalId: profId } });
+      }
+
+      // Usa mapa individual se disponível, senão escalona automaticamente
+      let lunchStart: string;
+      let lunchEnd: string;
+      const mapped = profLunchMap.get(profId);
+      if (mapped) {
+        lunchStart = mapped.lunchStart;
+        lunchEnd = mapped.lunchEnd;
+      } else {
+        const [ls, le] = defaultLunches[i % defaultLunches.length].split('-');
+        lunchStart = ls;
+        lunchEnd = le;
       }
 
       for (const day of WEEKDAYS_PT) {
@@ -205,22 +251,22 @@ async function main() {
           update: {
             start:      '09:00',
             end:        day === 'Sábado' ? '14:00' : '18:00',
-            lunchStart: day === 'Sábado' ? null : '12:00',
-            lunchEnd:   day === 'Sábado' ? null : '13:00',
+            lunchStart: day === 'Sábado' ? null : lunchStart,
+            lunchEnd:   day === 'Sábado' ? null : lunchEnd,
           },
           create: {
             professionalId: profId,
             day,
             start:      '09:00',
             end:        day === 'Sábado' ? '14:00' : '18:00',
-            lunchStart: day === 'Sábado' ? null : '12:00',
-            lunchEnd:   day === 'Sábado' ? null : '13:00',
+            lunchStart: day === 'Sábado' ? null : lunchStart,
+            lunchEnd:   day === 'Sábado' ? null : lunchEnd,
           },
         });
       }
     }
 
-    console.log('Seed: disponibilidade dos profissionais — seg–sex 09:00–18:00 (almoço 12–13), sáb 09:00–14:00.');
+    console.log('Seed: disponibilidade dos profissionais — seg–sex 09:00–18:00 (almoços escalonados), sáb 09:00–14:00.');
   }
 
   // ─── Serviços ─────────────────────────────────────────────────────────────
@@ -314,8 +360,53 @@ async function main() {
   // ─── Dados de faturamento (últimos 3 meses) ──────────────────────────────
   if (professionalIds.length > 0 && shopId) {
     const DAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    const WORK_DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    const TIME_SLOTS = ['09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
+
+    // Busca profissionais com suas unidades
+    const allProfessionals = await prisma.professional.findMany({
+      where: { shopId },
+      select: { id: true, unitId: true },
+    });
+    const profUnitMap = new Map(allProfessionals.map(p => [p.id, p.unitId]));
+
+    // Busca horários de trabalho completos de cada profissional
+    const allWorkingHours = await prisma.workingHour.findMany({
+      where: { professionalId: { in: professionalIds } },
+      select: { professionalId: true, day: true, start: true, end: true, lunchStart: true, lunchEnd: true },
+    });
+
+    // Mapa: profId → { day → schedule }
+    const profScheduleMap = new Map<string, Map<string, { start: string; end: string; lunchStart: string | null; lunchEnd: string | null }>>();
+    for (const wh of allWorkingHours) {
+      if (!profScheduleMap.has(wh.professionalId)) profScheduleMap.set(wh.professionalId, new Map());
+      profScheduleMap.get(wh.professionalId)!.set(wh.day, {
+        start: wh.start, end: wh.end,
+        lunchStart: wh.lunchStart, lunchEnd: wh.lunchEnd,
+      });
+    }
+
+    // Helper: gera slots de 30min disponíveis para um profissional num dia
+    function getAvailableSlots(profId: string, dayName: string): string[] {
+      const schedule = profScheduleMap.get(profId)?.get(dayName);
+      if (!schedule) return [];
+      const [startH, startM] = schedule.start.split(':').map(Number);
+      const [endH, endM] = schedule.end.split(':').map(Number);
+      const startMin = startH * 60 + startM;
+      const endMin = endH * 60 + endM;
+      const lunchStartMin = schedule.lunchStart ? (() => { const [h, m] = schedule.lunchStart!.split(':').map(Number); return h * 60 + m; })() : -1;
+      const lunchEndMin = schedule.lunchEnd ? (() => { const [h, m] = schedule.lunchEnd!.split(':').map(Number); return h * 60 + m; })() : -1;
+
+      const slots: string[] = [];
+      for (let min = startMin; min < endMin; min += 30) {
+        // Pula slots no horário de almoço
+        if (lunchStartMin >= 0 && min >= lunchStartMin && min < lunchEndMin) continue;
+        const h = Math.floor(min / 60);
+        const m = min % 60;
+        slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      }
+      return slots;
+    }
+
+    const FILL_RATE = 0.70; // 70% de ocupação
 
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 3);
@@ -347,88 +438,52 @@ async function main() {
             notes: string;
           }> = [];
 
-          // Agendamentos futuros (semana atual) — status 'confirmed' para aparecer na agenda
-          const futureEnd = new Date();
-          futureEnd.setDate(futureEnd.getDate() + 7);
-          const currentFuture = new Date();
-
-          while (currentFuture <= futureEnd) {
-            const dayName = DAYS_PT[currentFuture.getDay()];
-            if (WORK_DAYS.includes(dayName)) {
-              const slotsPerDay = dayName === 'Sábado' ? 2 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 3);
-              const shuffledSlots = [...TIME_SLOTS].sort(() => Math.random() - 0.5);
-              const pickedSlots = shuffledSlots.slice(0, Math.min(slotsPerDay, shuffledSlots.length));
-
-              for (const slot of pickedSlots) {
-                if (dayName !== 'Sábado' && slot >= '12:00' && slot < '13:00') continue;
-
-                const svc = allServices[Math.floor(Math.random() * allServices.length)];
-                const clientId = clientIds[Math.floor(Math.random() * clientIds.length)];
-                const profId = professionalIds[Math.floor(Math.random() * professionalIds.length)];
-
-                appointments.push({
-                  shopId,
-                  clientId,
-                  serviceId: svc.id,
-                  professionalId: profId,
-                  unitId,
-                  date: currentFuture.toISOString().slice(0, 10),
-                  time: slot,
-                  duration: svc.duration,
-                  price: svc.price,
-                  status: 'confirmed',
-                  cancelReason: null,
-                  notes: '',
-                });
-              }
-            }
-            currentFuture.setDate(currentFuture.getDate() + 1);
-          }
-
-          // Agendamentos passados (últimos 3 meses) — status completed/cancelled
-          const current = new Date(startDate);
           const today = new Date();
+          const todayStr = today.toISOString().slice(0, 10);
+          const currentTime = today.toTimeString().slice(0, 5);
 
-          while (current <= today) {
-            const dayName = DAYS_PT[current.getDay()];
-            if (WORK_DAYS.includes(dayName)) {
-              const slotsPerDay = dayName === 'Sábado' ? 3 + Math.floor(Math.random() * 3) : 5 + Math.floor(Math.random() * 4);
-              const shuffledSlots = [...TIME_SLOTS].sort(() => Math.random() - 0.5);
-              const pickedSlots = shuffledSlots.slice(0, Math.min(slotsPerDay, shuffledSlots.length));
+          // Gera agendamentos para cada dia, para cada profissional
+          const endDate = new Date();
+          endDate.setDate(endDate.getDate() + 7);
+          const cursor = new Date(startDate);
+
+          while (cursor <= endDate) {
+            const dateStr = cursor.toISOString().slice(0, 10);
+            const dayName = DAYS_PT[cursor.getDay()];
+            const isFuture = dateStr > todayStr;
+            const isToday = dateStr === todayStr;
+
+            for (const profId of professionalIds) {
+              const availableSlots = getAvailableSlots(profId, dayName);
+              if (availableSlots.length === 0) continue;
+
+              // Preenche ~70% dos slots
+              const slotsToFill = Math.round(availableSlots.length * FILL_RATE);
+              const shuffled = [...availableSlots].sort(() => Math.random() - 0.5);
+              const pickedSlots = shuffled.slice(0, slotsToFill);
 
               for (const slot of pickedSlots) {
-                if (dayName !== 'Sábado' && slot >= '12:00' && slot < '13:00') continue;
-
                 const svc = allServices[Math.floor(Math.random() * allServices.length)];
                 const clientId = clientIds[Math.floor(Math.random() * clientIds.length)];
-                const profId = professionalIds[Math.floor(Math.random() * professionalIds.length)];
+                const profUnit = profUnitMap.get(profId) ?? unitId;
 
-                const rand = Math.random();
                 let status: string;
                 let cancelReason: string | null = null;
 
-                // Se é hoje e o horário ainda não passou, não pode ser completed
-                const isToday = current.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
-                const currentTime = today.toTimeString().slice(0, 5);
-                const isFutureSlot = isToday && slot >= currentTime;
-
-                if (isFutureSlot) {
+                if (isFuture || (isToday && slot >= currentTime)) {
                   status = 'confirmed';
-                } else if (rand < 0.12) {
-                  status = 'cancelled';
-                  const reasons = [
-                    'Cliente desistiu',
-                    'Imprevisto pessoal',
-                    'Mudança de horário',
-                    'Problema de transporte',
-                    'Motivos de saúde',
-                  ];
-                  cancelReason = reasons[Math.floor(Math.random() * reasons.length)];
-                } else if (rand < 0.15) {
-                  status = 'cancelled';
-                  cancelReason = 'Não compareceu';
                 } else {
-                  status = 'completed';
+                  const rand = Math.random();
+                  if (rand < 0.10) {
+                    status = 'cancelled';
+                    const reasons = ['Cliente desistiu', 'Imprevisto pessoal', 'Mudança de horário', 'Problema de transporte', 'Motivos de saúde'];
+                    cancelReason = reasons[Math.floor(Math.random() * reasons.length)];
+                  } else if (rand < 0.13) {
+                    status = 'cancelled';
+                    cancelReason = 'Não compareceu';
+                  } else {
+                    status = 'completed';
+                  }
                 }
 
                 appointments.push({
@@ -436,21 +491,26 @@ async function main() {
                   clientId,
                   serviceId: svc.id,
                   professionalId: profId,
-                  unitId,
-                  date: current.toISOString().slice(0, 10),
+                  unitId: profUnit,
+                  date: dateStr,
                   time: slot,
                   duration: svc.duration,
                   price: svc.price,
                   status,
                   cancelReason,
-                  notes: status === 'completed' ? '' : '',
+                  notes: '',
                 });
               }
             }
-            current.setDate(current.getDate() + 1);
+
+            cursor.setDate(cursor.getDate() + 1);
           }
 
-          await prisma.appointment.createMany({ data: appointments });
+          // Insere em batches para não estourar memória
+          const BATCH_SIZE = 500;
+          for (let i = 0; i < appointments.length; i += BATCH_SIZE) {
+            await prisma.appointment.createMany({ data: appointments.slice(i, i + BATCH_SIZE) });
+          }
 
           // ─── Adicionais aleatórios em ~30% dos agendamentos ─────────────
           const addonServices = await prisma.service.findMany({
