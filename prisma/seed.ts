@@ -39,7 +39,7 @@ async function main() {
 
   let shopId: string;
   let unitId: string;
-  let professionalId: string;
+  let professionalIds: string[] = [];
 
   if (existing) {
     console.log('Seed: admin já existe. Reutilizando dados existentes.');
@@ -53,11 +53,11 @@ async function main() {
     if (shopId) {
       const u = await prisma.unit.findFirst({ where: { shopId }, select: { id: true } });
       unitId = u?.id ?? '';
-      const p = await prisma.professional.findFirst({ where: { shopId }, select: { id: true } });
-      professionalId = p?.id ?? '';
+      const profs = await prisma.professional.findMany({ where: { shopId }, select: { id: true } });
+      professionalIds = profs.map(p => p.id);
     } else {
       unitId = '';
-      professionalId = '';
+      professionalIds = [];
     }
   } else {
     const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
@@ -110,20 +110,27 @@ async function main() {
 
     console.log(`Seed: unidade criada — ${unit.name}`);
 
-    const professional = await prisma.professional.create({
-      data: {
-        shopId,
-        unitId,
-        name:        'Carlos Silva',
-        phone:       '11987654321',
-        email:       'carlos@exemplo.com',
-        specialties: ['Corte', 'Barba'],
-        active:      true,
-      },
-    });
-    professionalId = professional.id;
+    const professionalsData = [
+      { name: 'Carlos Silva', phone: '11987654321', email: 'carlos@exemplo.com', specialties: ['Corte', 'Barba'] },
+      { name: 'Ana Oliveira', phone: '11987654322', email: 'ana@exemplo.com', specialties: ['Corte', 'Coloração'] },
+      { name: 'Rafael Costa', phone: '11987654323', email: 'rafael@exemplo.com', specialties: ['Barba', 'Pigmentação'] },
+    ];
 
-    console.log(`Seed: profissional criado — ${professional.name}`);
+    for (const prof of professionalsData) {
+      const professional = await prisma.professional.create({
+        data: {
+          shopId,
+          unitId,
+          name: prof.name,
+          phone: prof.phone,
+          email: prof.email,
+          specialties: prof.specialties,
+          active: true,
+        },
+      });
+      professionalIds.push(professional.id);
+      console.log(`Seed: profissional criado — ${professional.name}`);
+    }
   }
 
   // Se não encontrou dados existentes, não há nada para popular
@@ -164,36 +171,38 @@ async function main() {
 
   console.log('Seed: horários da shop — seg–sex 09:00–18:00, sáb 09:00–14:00, dom fechado.');
 
-  // ─── Disponibilidade do profissional ──────────────────────────────────────
+  // ─── Disponibilidade dos profissionais ────────────────────────────────────
   // Mesmos dias da shop, com horário de almoço nos dias úteis
-  if (professionalId) {
-    const oldWorkingHours = await prisma.workingHour.findMany({ where: { professionalId } });
-    const hasOldEnglishWorkingDays = oldWorkingHours.some((h) => !ALL_DAYS_PT.includes(h.day));
-    if (hasOldEnglishWorkingDays) {
-      await prisma.workingHour.deleteMany({ where: { professionalId } });
+  if (professionalIds.length > 0) {
+    for (const profId of professionalIds) {
+      const oldWorkingHours = await prisma.workingHour.findMany({ where: { professionalId: profId } });
+      const hasOldEnglishWorkingDays = oldWorkingHours.some((h) => !ALL_DAYS_PT.includes(h.day));
+      if (hasOldEnglishWorkingDays) {
+        await prisma.workingHour.deleteMany({ where: { professionalId: profId } });
+      }
+
+      for (const day of WEEKDAYS_PT) {
+        await prisma.workingHour.upsert({
+          where:  { professionalId_day: { professionalId: profId, day } },
+          update: {
+            start:      '09:00',
+            end:        day === 'Sábado' ? '14:00' : '18:00',
+            lunchStart: day === 'Sábado' ? null : '12:00',
+            lunchEnd:   day === 'Sábado' ? null : '13:00',
+          },
+          create: {
+            professionalId: profId,
+            day,
+            start:      '09:00',
+            end:        day === 'Sábado' ? '14:00' : '18:00',
+            lunchStart: day === 'Sábado' ? null : '12:00',
+            lunchEnd:   day === 'Sábado' ? null : '13:00',
+          },
+        });
+      }
     }
 
-    for (const day of WEEKDAYS_PT) {
-      await prisma.workingHour.upsert({
-        where:  { professionalId_day: { professionalId, day } },
-        update: {
-          start:      '09:00',
-          end:        day === 'Sábado' ? '14:00' : '18:00',
-          lunchStart: day === 'Sábado' ? null : '12:00',
-          lunchEnd:   day === 'Sábado' ? null : '13:00',
-        },
-        create: {
-          professionalId,
-          day,
-          start:      '09:00',
-          end:        day === 'Sábado' ? '14:00' : '18:00',
-          lunchStart: day === 'Sábado' ? null : '12:00',
-          lunchEnd:   day === 'Sábado' ? null : '13:00',
-        },
-      });
-    }
-
-    console.log('Seed: disponibilidade do profissional — seg–sex 09:00–18:00 (almoço 12–13), sáb 09:00–14:00.');
+    console.log('Seed: disponibilidade dos profissionais — seg–sex 09:00–18:00 (almoço 12–13), sáb 09:00–14:00.');
   }
 
   // ─── Serviços ─────────────────────────────────────────────────────────────
@@ -283,6 +292,148 @@ async function main() {
   }
 
   console.log(`Seed: ${clients.length} clientes de exemplo criados.`);
+
+  // ─── Dados de faturamento (últimos 3 meses) ──────────────────────────────
+  if (professionalIds.length > 0 && shopId) {
+    const DAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const WORK_DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const TIME_SLOTS = ['09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
+
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 3);
+    startDate.setDate(1);
+
+    const existingAppointments = await prisma.appointment.findFirst({ where: { shopId } });
+
+    if (!existingAppointments) {
+      const clientIds = (await prisma.client.findMany({ where: { shopId }, select: { id: true } })).map((c) => c.id);
+      if (clientIds.length === 0) {
+        console.log('Seed: sem clientes cadastrados, pulando agendamentos de faturamento.');
+      } else {
+        const allServices = await prisma.service.findMany({ where: { shopId, type: 'service' }, select: { id: true, name: true, price: true, duration: true } });
+        if (allServices.length === 0) {
+          console.log('Seed: sem serviços cadastrados, pulando agendamentos de faturamento.');
+        } else {
+          const appointments: Array<{
+            shopId: string;
+            clientId: string;
+            serviceId: string;
+            professionalId: string;
+            date: string;
+            time: string;
+            duration: number;
+            price: number;
+            status: string;
+            cancelReason: string | null;
+            notes: string;
+          }> = [];
+
+          // Agendamentos futuros (semana atual) — status 'confirmed' para aparecer na agenda
+          const futureEnd = new Date();
+          futureEnd.setDate(futureEnd.getDate() + 7);
+          const currentFuture = new Date();
+
+          while (currentFuture <= futureEnd) {
+            const dayName = DAYS_PT[currentFuture.getDay()];
+            if (WORK_DAYS.includes(dayName)) {
+              const slotsPerDay = dayName === 'Sábado' ? 2 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 3);
+              const shuffledSlots = [...TIME_SLOTS].sort(() => Math.random() - 0.5);
+              const pickedSlots = shuffledSlots.slice(0, Math.min(slotsPerDay, shuffledSlots.length));
+
+              for (const slot of pickedSlots) {
+                if (dayName !== 'Sábado' && slot >= '12:00' && slot < '13:00') continue;
+
+                const svc = allServices[Math.floor(Math.random() * allServices.length)];
+                const clientId = clientIds[Math.floor(Math.random() * clientIds.length)];
+                const profId = professionalIds[Math.floor(Math.random() * professionalIds.length)];
+
+                appointments.push({
+                  shopId,
+                  clientId,
+                  serviceId: svc.id,
+                  professionalId: profId,
+                  date: currentFuture.toISOString().slice(0, 10),
+                  time: slot,
+                  duration: svc.duration,
+                  price: svc.price,
+                  status: 'confirmed',
+                  cancelReason: null,
+                  notes: '',
+                });
+              }
+            }
+            currentFuture.setDate(currentFuture.getDate() + 1);
+          }
+
+          // Agendamentos passados (últimos 3 meses) — status completed/cancelled/noshow
+          const current = new Date(startDate);
+          const today = new Date();
+
+          while (current <= today) {
+            const dayName = DAYS_PT[current.getDay()];
+            if (WORK_DAYS.includes(dayName)) {
+              const slotsPerDay = dayName === 'Sábado' ? 3 + Math.floor(Math.random() * 3) : 5 + Math.floor(Math.random() * 4);
+              const shuffledSlots = [...TIME_SLOTS].sort(() => Math.random() - 0.5);
+              const pickedSlots = shuffledSlots.slice(0, Math.min(slotsPerDay, shuffledSlots.length));
+
+              for (const slot of pickedSlots) {
+                if (dayName !== 'Sábado' && slot >= '12:00' && slot < '13:00') continue;
+
+                const svc = allServices[Math.floor(Math.random() * allServices.length)];
+                const clientId = clientIds[Math.floor(Math.random() * clientIds.length)];
+                const profId = professionalIds[Math.floor(Math.random() * professionalIds.length)];
+
+                const rand = Math.random();
+                let status: string;
+                let cancelReason: string | null = null;
+
+                if (rand < 0.12) {
+                  status = 'cancelled';
+                  const reasons = [
+                    'Cliente desistiu',
+                    'Imprevisto pessoal',
+                    'Mudança de horário',
+                    'Problema de transporte',
+                    'Motivos de saúde',
+                  ];
+                  cancelReason = reasons[Math.floor(Math.random() * reasons.length)];
+                } else if (rand < 0.15) {
+                  status = 'noshow';
+                } else {
+                  status = 'completed';
+                }
+
+                appointments.push({
+                  shopId,
+                  clientId,
+                  serviceId: svc.id,
+                  professionalId: profId,
+                  date: current.toISOString().slice(0, 10),
+                  time: slot,
+                  duration: svc.duration,
+                  price: svc.price,
+                  status,
+                  cancelReason,
+                  notes: status === 'completed' ? '' : '',
+                });
+              }
+            }
+            current.setDate(current.getDate() + 1);
+          }
+
+          await prisma.appointment.createMany({ data: appointments });
+
+          const confirmedCount = appointments.filter((a) => a.status === 'confirmed').length;
+          const completedCount = appointments.filter((a) => a.status === 'completed').length;
+          const cancelledCount = appointments.filter((a) => a.status === 'cancelled').length;
+          console.log(`Seed: ${appointments.length} agendamentos criados (${confirmedCount} confirmados, ${completedCount} concluídos, ${cancelledCount} cancelados).`);
+        }
+      }
+    } else {
+      console.log('Seed: agendamentos de faturamento já existem. Pulando.');
+    }
+  }
+
 }
 
 main()

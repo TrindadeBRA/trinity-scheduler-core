@@ -208,10 +208,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
     ]);
 
     // Busca profissionais de todos os shops de uma vez (evita N+1)
-    // Apenas para leaders — admins não têm profissionais associados
-    const leaderShopIds = [...new Set(
-      leaders.filter(l => l.role === 'leader').map(l => l.shopId)
-    )];
+    const allShopIds = [...new Set(leaders.map(l => l.shopId).filter(Boolean))];
 
     const userIds = leaders.map(l => l.id);
 
@@ -222,25 +219,25 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
         })
       : [];
 
-    const appointmentCounts = leaderShopIds.length > 0
+    const appointmentCounts = allShopIds.length > 0
       ? await prisma.appointment.groupBy({
           by: ['shopId'],
-          where: { shopId: { in: leaderShopIds } },
+          where: { shopId: { in: allShopIds } },
           _count: { id: true },
         })
       : [];
 
-    const unitCounts = leaderShopIds.length > 0
+    const unitCounts = allShopIds.length > 0
       ? await prisma.unit.groupBy({
           by: ['shopId'],
-          where: { shopId: { in: leaderShopIds } },
+          where: { shopId: { in: allShopIds } },
           _count: { id: true },
         })
       : [];
 
-    const allProfessionals = leaderShopIds.length > 0
+    const allProfessionals = allShopIds.length > 0
       ? await prisma.professional.findMany({
-          where: { shopId: { in: leaderShopIds }, deletedAt: null },
+          where: { shopId: { in: allShopIds }, deletedAt: null },
           select: { id: true, shopId: true, name: true, email: true, phone: true, active: true },
           orderBy: { name: 'asc' },
         })
@@ -268,7 +265,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
     }, {});
 
     const data = leaders.map((user) => {
-      const professionals = user.role === 'leader' ? (profsByShop[user.shopId] ?? []) : [];
+      const professionals = user.shopId ? (profsByShop[user.shopId] ?? []) : [];
       const userPlan = userPlanByUserId[user.id] ?? null;
       const subscriptionStatus = userPlan?.subscriptionStatus ?? null;
 
