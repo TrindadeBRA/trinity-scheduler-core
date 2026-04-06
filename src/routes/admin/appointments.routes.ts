@@ -340,7 +340,7 @@ router.get('/appointments/:id', authorize('leader', 'professional', 'admin'), as
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/appointments', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/appointments', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
@@ -351,11 +351,16 @@ router.post('/appointments', authorize('leader', 'admin'), async (req: Request, 
       throw new AppError(400, 'VALIDATION_ERROR', 'Campos clientId, serviceId, date e time são obrigatórios');
     }
 
+    // Profissional só pode criar agendamento para si mesmo
+    const resolvedProfessionalId = req.user?.role === 'professional'
+      ? req.user.professionalId
+      : (professionalId || null);
+
     const appointment = await createAppointment({
       shopId,
       clientId,
       serviceId,
-      professionalId: professionalId || null,
+      professionalId: resolvedProfessionalId,
       addonIds: addonIds || [],
       date,
       time,
