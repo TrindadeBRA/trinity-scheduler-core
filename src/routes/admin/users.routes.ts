@@ -97,6 +97,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
           email: true,
           role: true,
           shopId: true,
+          referralId: true,
           createdAt: true,
           shop: { select: { id: true, name: true } },
         },
@@ -131,6 +132,18 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
           _count: { id: true },
         })
       : [];
+
+    const referralIds = [...new Set(leaders.map(l => l.referralId).filter(Boolean))] as string[];
+    const allReferrals = referralIds.length > 0
+      ? await prisma.referral.findMany({
+          where: { id: { in: referralIds } },
+          select: { id: true, code: true, name: true },
+        })
+      : [];
+    const referralById = allReferrals.reduce<Record<string, typeof allReferrals[0]>>((acc, r) => {
+      acc[r.id] = r;
+      return acc;
+    }, {});
 
     const allProfessionals = allShopIds.length > 0
       ? await prisma.professional.findMany({
@@ -186,6 +199,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
         },
         appointmentsCount: appointmentCountByShopId[user.shopId] ?? 0,
         unitsCount: unitCountByShopId[user.shopId] ?? 0,
+        referral: user.referralId ? (referralById[user.referralId] ?? null) : null,
       };
     });
 
