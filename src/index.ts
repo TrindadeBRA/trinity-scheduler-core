@@ -5,5 +5,6 @@ import { initCronJobs } from './services/cron.service';
 
 app.listen(env.PORT, () => {
   console.log(`Kronuz running on port ${env.PORT}`);
+  console.log(`Swagger docs: http://localhost:${env.PORT}/api-docs`);
   initCronJobs();
 });
