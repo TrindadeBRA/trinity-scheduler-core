@@ -60,10 +60,28 @@ router.get('/referrals', authorize('admin'), async (req: Request, res: Response,
       ? { code: { contains: search as string, mode: 'insensitive' as const } }
       : {};
 
-    const [data, total] = await prisma.$transaction([
-      prisma.referral.findMany({ where, skip, take: perPageNum, orderBy: { createdAt: 'desc' } }),
+    const [raw, total] = await prisma.$transaction([
+      prisma.referral.findMany({
+        where,
+        skip,
+        take: perPageNum,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: { select: { users: true } },
+          users: {
+            where: { userPlan: { subscriptionStatus: { in: ['ACTIVE', 'CONFIRMED'] } } },
+            select: { id: true },
+          },
+        },
+      }),
       prisma.referral.count({ where }),
     ]);
+
+    const data = raw.map(({ users, _count, ...r }) => ({
+      ...r,
+      totalUsers: _count.users,
+      payingUsers: users.length,
+    }));
 
     res.json({ data, total });
   } catch (err) {
@@ -102,9 +120,19 @@ router.get('/referrals', authorize('admin'), async (req: Request, res: Response,
 router.get('/referrals/:id', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const referral = await prisma.referral.findUnique({ where: { id } });
-    if (!referral) throw new AppError(404, 'NOT_FOUND', 'Referência não encontrada');
-    res.json(referral);
+    const raw = await prisma.referral.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { users: true } },
+        users: {
+          where: { userPlan: { subscriptionStatus: { in: ['ACTIVE', 'CONFIRMED'] } } },
+          select: { id: true },
+        },
+      },
+    });
+    if (!raw) throw new AppError(404, 'NOT_FOUND', 'Referência não encontrada');
+    const { users, _count, ...referral } = raw;
+    res.json({ ...referral, totalUsers: _count.users, payingUsers: users.length });
   } catch (err) {
     next(err);
   }
@@ -154,7 +182,7 @@ router.get('/referrals/:id', authorize('admin'), async (req: Request, res: Respo
  */
 router.post('/referrals', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { code, commissionType, commissionValue } = req.body;
+    const { code, name, email, commissionType, commissionValue } = req.body;
 
     if (!code || !commissionType || commissionValue === undefined) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Campos code, commissionType e commissionValue são obrigatórios');
@@ -171,7 +199,7 @@ router.post('/referrals', authorize('admin'), async (req: Request, res: Response
     }
 
     const referral = await prisma.referral.create({
-      data: { code: normalizedCode, commissionType, commissionValue: parsedValue },
+      data: { code: normalizedCode, name: name || null, email: email || null, commissionType, commissionValue: parsedValue },
     });
 
     res.status(201).json(referral);
@@ -230,12 +258,12 @@ router.post('/referrals', authorize('admin'), async (req: Request, res: Response
 router.put('/referrals/:id', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const { code, commissionType, commissionValue } = req.body;
+    const { code, name, email, commissionType, commissionValue } = req.body;
 
     const existing = await prisma.referral.findUnique({ where: { id } });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Referência não encontrada');
 
-    const updateData: { code?: string; commissionType?: string; commissionValue?: number } = {};
+    const updateData: { code?: string; name?: string | null; email?: string | null; commissionType?: string; commissionValue?: number } = {};
 
     if (code !== undefined) {
       const normalizedCode = (code as string).toLowerCase();
@@ -246,6 +274,8 @@ router.put('/referrals/:id', authorize('admin'), async (req: Request, res: Respo
       updateData.code = normalizedCode;
     }
 
+    if (name !== undefined) updateData.name = name || null;
+    if (email !== undefined) updateData.email = email || null;
     if (commissionType !== undefined) updateData.commissionType = commissionType;
     if (commissionValue !== undefined) {
       const parsedValue = parseInt(commissionValue, 10);

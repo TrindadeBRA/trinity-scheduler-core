@@ -277,6 +277,8 @@ model UserPlan {
 model Referral {
   id              String   @id @default(uuid())
   code            String   @unique
+  name            String?
+  email           String?
   commissionType  String   // "percentage" | "fixed"
   commissionValue Int      // centavos para fixed, inteiro para percentage
   createdAt       DateTime @default(now())
