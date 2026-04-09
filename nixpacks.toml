@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = ["npm install -g yarn@4.11.0", "yarn install --immutable"]
+cmds = ["npm install -g corepack@0.24.1 && corepack enable", "yarn install --immutable"]
 
 [phases.build]
 cmds = ["yarn build"]
