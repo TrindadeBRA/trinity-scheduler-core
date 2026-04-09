@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm install -g yarn@4.11.0", "yarn install --immutable"]
+
+[phases.build]
+cmds = ["yarn build"]
+
+[start]
+cmd = "yarn start"
