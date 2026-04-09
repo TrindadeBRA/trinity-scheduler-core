@@ -231,6 +231,8 @@ CREATE TABLE "UserPlan" (
 CREATE TABLE "Referral" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
+    "name" TEXT,
+    "email" TEXT,
     "commissionType" TEXT NOT NULL,
     "commissionValue" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -337,3 +339,4 @@ ALTER TABLE "UserPlan" ADD CONSTRAINT "UserPlan_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "UserPlan" ADD CONSTRAINT "UserPlan_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+

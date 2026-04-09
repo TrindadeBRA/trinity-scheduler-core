@@ -123,16 +123,82 @@ router.get('/referrals/:id', authorize('admin'), async (req: Request, res: Respo
     const raw = await prisma.referral.findUnique({
       where: { id },
       include: {
-        _count: { select: { users: true } },
         users: {
-          where: { userPlan: { subscriptionStatus: { in: ['ACTIVE', 'CONFIRMED'] } } },
-          select: { id: true },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            createdAt: true,
+            userPlan: {
+              include: { plan: { select: { id: true, name: true, price: true } } },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
     if (!raw) throw new AppError(404, 'NOT_FOUND', 'Referência não encontrada');
-    const { users, _count, ...referral } = raw;
-    res.json({ ...referral, totalUsers: _count.users, payingUsers: users.length });
+
+    const PAID_STATUSES = ['ACTIVE', 'CONFIRMED'];
+    const now = new Date();
+
+    const users = raw.users.map((u) => {
+      const up = u.userPlan;
+      const status = up?.subscriptionStatus ?? null;
+      const isPaying = !!(status && PAID_STATUSES.includes(status));
+
+      // Trial days remaining (only for non-paying users)
+      let trialDaysRemaining: number | null = null;
+      if (!isPaying) {
+        const diffDays = Math.floor((now.getTime() - u.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+        trialDaysRemaining = Math.max(0, 30 - diffDays);
+      }
+
+      // Commission earned once when user became a paying customer
+      let commission = 0;
+      if (isPaying && up?.plan) {
+        commission = raw.commissionType === 'percentage'
+          ? Math.round(up.plan.price * raw.commissionValue / 100)
+          : raw.commissionValue;
+      }
+
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        createdAt: u.createdAt,
+        plan: up ? {
+          planId: up.planId,
+          planName: up.plan.name,
+          planPrice: up.plan.price,
+          subscriptionStatus: up.subscriptionStatus,
+          isPackage: up.isPackage,
+          activatedAt: up.createdAt,
+        } : null,
+        trialDaysRemaining,
+        commission,
+      };
+    });
+
+    const totalUsers = users.length;
+    const payingUsers = users.filter(u => u.plan && PAID_STATUSES.includes(u.plan.subscriptionStatus)).length;
+    const totalCommission = users.reduce((sum, u) => sum + u.commission, 0);
+
+    // Monthly breakdown: group by month the user activated the paid plan
+    const monthlyMap = new Map<string, { users: number; commission: number }>();
+    for (const u of users) {
+      if (u.commission > 0 && u.plan?.activatedAt) {
+        const month = (u.plan.activatedAt as Date).toISOString().slice(0, 7); // "2026-01"
+        const cur = monthlyMap.get(month) ?? { users: 0, commission: 0 };
+        monthlyMap.set(month, { users: cur.users + 1, commission: cur.commission + u.commission });
+      }
+    }
+    const monthlyBreakdown = Array.from(monthlyMap.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([month, data]) => ({ month, ...data }));
+
+    const { users: _, ...referral } = raw;
+    res.json({ ...referral, totalUsers, payingUsers, totalCommission, monthlyBreakdown, users });
   } catch (err) {
     next(err);
   }
