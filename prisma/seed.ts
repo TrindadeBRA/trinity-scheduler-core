@@ -5,6 +5,7 @@ import {
   SHOP_HOURS, ALL_DAYS_PT, WEEKDAYS_PT,
 } from './seed/data';
 import { seedAppointments } from './seed/appointments';
+import { seedDev } from './seed/devSeed';
 
 const prisma = new PrismaClient();
 
@@ -167,6 +168,11 @@ async function main() {
 
   // ─── Agendamentos (70% de ocupação, 3 meses + 7 dias) ─────────────────
   await seedAppointments(prisma, shopId, unitIds[0]);
+
+  // ─── Dados de desenvolvimento (líderes e referências de teste) ─────────
+  if (process.env.NODE_ENV !== 'production') {
+    await seedDev(prisma);
+  }
 }
 
 main()
