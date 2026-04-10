@@ -147,20 +147,17 @@ export async function getAvailableSlots(
 ): Promise<Slot[]> {
   const dayName = getDayName(date);
 
-  const shopHour = await prisma.shopHour.findUnique({
-    where: { shopId_day: { shopId, day: dayName } },
-  });
+  const [shopHour, shop] = await Promise.all([
+    prisma.shopHour.findUnique({ where: { shopId_day: { shopId, day: dayName } } }),
+    prisma.shop.findUnique({ where: { id: shopId }, select: { bookingBuffer: true } }),
+  ]);
 
   if (!shopHour || !shopHour.start || !shopHour.end) {
     return [];
   }
 
-  const shopEndMin = timeToMinutes(shopHour.end);
   const allSlots = generateSlots(shopHour.start, shopHour.end);
 
-  // Se a data é hoje, remove slots cujo horário já passou (usando timezone da loja)
-  // bookingBuffer: minutos de antecedência mínima configurados pelo estabelecimento
-  const shop = await prisma.shop.findUnique({ where: { id: shopId } }) as { bookingBuffer?: number } | null;
   const bufferMinutes = shop?.bookingBuffer ?? 0;
 
   const nowTz = getNowInTimezone(SHOP_TIMEZONE);
@@ -211,20 +208,17 @@ export async function getDisabledDates(
   endDate: string,
   unitId: string | null = null
 ): Promise<string[]> {
-  const disabled: string[] = [];
-  const start = new Date(startDate + 'T12:00:00');
+  const dates: string[] = [];
+  const current = new Date(startDate + 'T12:00:00');
   const end = new Date(endDate + 'T12:00:00');
-
-  const current = new Date(start);
   while (current <= end) {
-    const dateStr = current.toISOString().split('T')[0];
-    const slots = await getAvailableSlots(shopId, professionalId, dateStr, 30, unitId);
-    const hasAvailable = slots.some((s) => s.available);
-    if (!hasAvailable) {
-      disabled.push(dateStr);
-    }
+    dates.push(current.toISOString().split('T')[0]);
     current.setDate(current.getDate() + 1);
   }
 
-  return disabled;
+  const results = await Promise.all(
+    dates.map((dateStr) => getAvailableSlots(shopId, professionalId, dateStr, 30, unitId))
+  );
+
+  return dates.filter((_, i) => !results[i].some((s) => s.available));
 }

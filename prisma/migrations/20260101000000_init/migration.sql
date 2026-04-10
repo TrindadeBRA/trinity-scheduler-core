@@ -251,10 +251,25 @@ CREATE UNIQUE INDEX "User_professionalId_key" ON "User"("professionalId");
 CREATE UNIQUE INDEX "ShopHour_shopId_day_key" ON "ShopHour"("shopId", "day");
 
 -- CreateIndex
+CREATE INDEX "Service_shopId_idx" ON "Service"("shopId");
+
+-- CreateIndex
+CREATE INDEX "Professional_shopId_idx" ON "Professional"("shopId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "WorkingHour_professionalId_day_key" ON "WorkingHour"("professionalId", "day");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Client_shopId_phone_key" ON "Client"("shopId", "phone");
+
+-- CreateIndex
+CREATE INDEX "Appointment_shopId_date_idx" ON "Appointment"("shopId", "date");
+
+-- CreateIndex
+CREATE INDEX "Appointment_professionalId_date_idx" ON "Appointment"("professionalId", "date");
+
+-- CreateIndex
+CREATE INDEX "Appointment_clientId_idx" ON "Appointment"("clientId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Unit_slug_key" ON "Unit"("slug");

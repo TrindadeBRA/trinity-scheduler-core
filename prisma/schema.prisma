@@ -83,6 +83,8 @@ model Service {
 
   shop         Shop          @relation(fields: [shopId], references: [id])
   appointments Appointment[]
+
+  @@index([shopId])
 }
 
 enum ServiceType {
@@ -111,6 +113,8 @@ model Professional {
   timeBlocks        TimeBlock[]
   user              User?
   professionalUnits ProfessionalUnit[]
+
+  @@index([shopId])
 }
 
 model WorkingHour {
@@ -169,6 +173,10 @@ model Appointment {
   service      Service             @relation(fields: [serviceId], references: [id])
   professional Professional        @relation(fields: [professionalId], references: [id])
   addons       AppointmentAddon[]
+
+  @@index([shopId, date])
+  @@index([professionalId, date])
+  @@index([clientId])
 }
 
 model AppointmentAddon {
