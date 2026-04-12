@@ -197,7 +197,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
           planName: userPlan?.plan?.name ?? 'Free',
           subscriptionStatus: userPlan?.subscriptionStatus ?? 'TRIAL',
           subscriptionId: userPlan?.subscriptionId ?? null,
-          planExpiresAt: userPlan?.planExpiresAt ?? null,
+          planExpiresAt: (userPlan as any)?.planExpiresAt ?? null,
         },
         appointmentsCount: appointmentCountByShopId[user.shopId] ?? 0,
         unitsCount: unitCountByShopId[user.shopId] ?? 0,
@@ -213,15 +213,16 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
 
 router.patch('/users/:userId/plan', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { userId } = req.params;
-    const { planId, planExpiresAt } = req.body as { planId?: string; planExpiresAt?: string | null };
+    const userId = req.params.userId as string;
+    const planId = String(req.body.planId ?? '');
+    const rawExpires: string | null | undefined = req.body.planExpiresAt;
 
     if (!planId) {
       throw new AppError(400, 'VALIDATION_ERROR', 'planId é obrigatório');
     }
 
-    if (planExpiresAt !== undefined && planExpiresAt !== null) {
-      const parsed = new Date(planExpiresAt);
+    if (rawExpires !== undefined && rawExpires !== null) {
+      const parsed = new Date(rawExpires);
       if (isNaN(parsed.getTime())) {
         throw new AppError(400, 'VALIDATION_ERROR', 'planExpiresAt deve ser uma data válida');
       }
@@ -243,31 +244,33 @@ router.patch('/users/:userId/plan', authorize('admin'), async (req: Request, res
       throw new AppError(404, 'NOT_FOUND', 'Plano não encontrado');
     }
 
-    const expiresAt = planExpiresAt ? new Date(planExpiresAt) : null;
+    const expiresAt = rawExpires ? new Date(rawExpires) : null;
+
+    const updateData: Record<string, unknown> = {
+      planId,
+      subscriptionStatus: planId === 'FREE' ? 'TRIAL' : 'ACTIVE',
+      subscriptionId: planId === 'FREE' ? null : undefined,
+      isPackage: false,
+      packageExpiresAt: null,
+      planExpiresAt: expiresAt,
+    };
 
     const userPlan = await prisma.userPlan.upsert({
       where: { userId },
-      update: {
-        planId,
-        subscriptionStatus: planId === 'FREE' ? 'TRIAL' : 'ACTIVE',
-        subscriptionId: planId === 'FREE' ? null : undefined,
-        isPackage: false,
-        packageExpiresAt: null,
-        planExpiresAt: expiresAt,
-      },
+      update: updateData as any,
       create: {
         userId,
         planId,
         subscriptionStatus: planId === 'FREE' ? 'TRIAL' : 'ACTIVE',
         planExpiresAt: expiresAt,
-      },
+      } as any,
     });
 
     res.json({
       planId: userPlan.planId,
       planName: plan.name,
       subscriptionStatus: userPlan.subscriptionStatus,
-      planExpiresAt: userPlan.planExpiresAt,
+      planExpiresAt: (userPlan as any).planExpiresAt ?? null,
     });
   } catch (err) {
     if (err instanceof AppError) return next(err);
