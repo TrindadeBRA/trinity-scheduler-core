@@ -275,6 +275,7 @@ model UserPlan {
   subscriptionStatus SubscriptionStatus @default(TRIAL)
   isPackage          Boolean            @default(false)
   packageExpiresAt   DateTime?
+  planExpiresAt      DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 

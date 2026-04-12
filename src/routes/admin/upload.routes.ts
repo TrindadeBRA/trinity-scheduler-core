@@ -5,7 +5,7 @@ import { AppError } from '../../utils/errors';
 
 const router = Router();
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const ALLOWED_FOLDERS = ['services', 'professionals', 'shop'] as const;
 
 /**

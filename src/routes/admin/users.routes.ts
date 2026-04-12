@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../utils/prisma';
 import { authorize } from '../../middlewares/authorize';
+import { AppError } from '../../utils/errors';
 import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
 
 function computeTrialDaysRemaining(
@@ -196,6 +197,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
           planName: userPlan?.plan?.name ?? 'Free',
           subscriptionStatus: userPlan?.subscriptionStatus ?? 'TRIAL',
           subscriptionId: userPlan?.subscriptionId ?? null,
+          planExpiresAt: userPlan?.planExpiresAt ?? null,
         },
         appointmentsCount: appointmentCountByShopId[user.shopId] ?? 0,
         unitsCount: unitCountByShopId[user.shopId] ?? 0,
@@ -205,6 +207,71 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
 
     res.json(createPaginatedResponse(data, total, pageNum, pageSizeNum));
   } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/users/:userId/plan', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId } = req.params;
+    const { planId, planExpiresAt } = req.body as { planId?: string; planExpiresAt?: string | null };
+
+    if (!planId) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'planId é obrigatório');
+    }
+
+    if (planExpiresAt !== undefined && planExpiresAt !== null) {
+      const parsed = new Date(planExpiresAt);
+      if (isNaN(parsed.getTime())) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'planExpiresAt deve ser uma data válida');
+      }
+      if (parsed <= new Date()) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'planExpiresAt deve ser uma data futura');
+      }
+    }
+
+    const [user, plan] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId } }),
+      prisma.plan.findUnique({ where: { id: planId } }),
+    ]);
+
+    if (!user) {
+      throw new AppError(404, 'NOT_FOUND', 'Usuário não encontrado');
+    }
+
+    if (!plan) {
+      throw new AppError(404, 'NOT_FOUND', 'Plano não encontrado');
+    }
+
+    const expiresAt = planExpiresAt ? new Date(planExpiresAt) : null;
+
+    const userPlan = await prisma.userPlan.upsert({
+      where: { userId },
+      update: {
+        planId,
+        subscriptionStatus: planId === 'FREE' ? 'TRIAL' : 'ACTIVE',
+        subscriptionId: planId === 'FREE' ? null : undefined,
+        isPackage: false,
+        packageExpiresAt: null,
+        planExpiresAt: expiresAt,
+      },
+      create: {
+        userId,
+        planId,
+        subscriptionStatus: planId === 'FREE' ? 'TRIAL' : 'ACTIVE',
+        planExpiresAt: expiresAt,
+      },
+    });
+
+    res.json({
+      planId: userPlan.planId,
+      planName: plan.name,
+      subscriptionStatus: userPlan.subscriptionStatus,
+      planExpiresAt: userPlan.planExpiresAt,
+    });
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
+    console.error('[users] PATCH /users/:userId/plan error:', err);
     next(err);
   }
 });
