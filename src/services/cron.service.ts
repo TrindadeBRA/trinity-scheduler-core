@@ -120,6 +120,50 @@ export async function expirePackages(): Promise<{ count: number }> {
   return { count: result.count };
 }
 
+export async function expirePlans(): Promise<{ count: number }> {
+  const now = new Date();
+
+  const expired = await prisma.userPlan.findMany({
+    where: {
+      planExpiresAt: { lt: now },
+      NOT: { planId: 'FREE' },
+    },
+    select: { userId: true, planId: true },
+  });
+
+  if (expired.length === 0) {
+    console.log(`${TAG} ${ts()} expirePlans — nenhum plano expirado.`);
+    return { count: 0 };
+  }
+
+  const adminUserIds = expired
+    .filter((up) => up.planId === 'ADMIN')
+    .map((up) => up.userId);
+
+  const userIds = expired.map((up) => up.userId);
+
+  await prisma.$transaction([
+    prisma.userPlan.updateMany({
+      where: { userId: { in: userIds } },
+      data: {
+        planId: 'FREE',
+        subscriptionStatus: 'TRIAL',
+        subscriptionId: null,
+        planExpiresAt: null,
+      },
+    }),
+    ...(adminUserIds.length > 0
+      ? [prisma.user.updateMany({
+          where: { id: { in: adminUserIds }, role: 'admin' },
+          data: { role: 'leader' },
+        })]
+      : []),
+  ]);
+
+  console.log(`${TAG} ${ts()} expirePlans — ${expired.length} plano(s) expirado(s) revertido(s) para FREE.`);
+  return { count: expired.length };
+}
+
 /**
  * Inicializa os cron jobs da aplicação.
  */
@@ -130,6 +174,7 @@ export function initCronJobs() {
       await completePastAppointments();
       await syncClientTotals();
       await expirePackages();
+      await expirePlans();
       console.log(`${TAG} ${ts()} ── Rotina diária finalizada com sucesso ──`);
     } catch (error) {
       console.error(`${TAG} ${ts()} ── Rotina diária falhou ──`, error);
