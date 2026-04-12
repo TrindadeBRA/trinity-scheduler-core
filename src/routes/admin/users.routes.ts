@@ -33,7 +33,11 @@ const router = Router();
  * /admin/users:
  *   get:
  *     tags: [Admin Users]
- *     summary: Listar todos os leaders e seus profissionais (apenas admin)
+ *     summary: Listar usuários e seus profissionais (apenas admin)
+ *     description: >
+ *       Retorna lista paginada de usuários (leaders e admins) com profissionais vinculados,
+ *       dados do plano, contagem de agendamentos e unidades.
+ *       Filtro por role=admin também retorna leaders com plano ADMIN.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -42,6 +46,12 @@ const router = Router();
  *         schema:
  *           type: string
  *         description: Busca por nome, e-mail ou nome do estabelecimento
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [admin, leader]
+ *         description: Filtrar por role (admin inclui users com plano ADMIN)
  *       - in: query
  *         name: page
  *         schema:
@@ -54,7 +64,24 @@ const router = Router();
  *           default: 10
  *     responses:
  *       200:
- *         description: Lista paginada de leaders com seus profissionais
+ *         description: Lista paginada de usuários
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/AdminUserItem'
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -227,6 +254,70 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
   }
 });
 
+/**
+ * @swagger
+ * /admin/users/{userId}/plan:
+ *   patch:
+ *     tags: [Admin Users]
+ *     summary: Alterar plano de um usuário (apenas admin)
+ *     description: >
+ *       Atualiza o plano do usuário. Quando o plano é ADMIN, o role do usuário
+ *       é promovido para admin automaticamente. Quando sai do plano ADMIN,
+ *       o role volta para leader.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [planId]
+ *             properties:
+ *               planId:
+ *                 type: string
+ *                 enum: [FREE, PREMIUM, PRO, ADMIN]
+ *               planExpiresAt:
+ *                 type: string
+ *                 format: date-time
+ *                 nullable: true
+ *                 description: Data de expiração do plano (null = permanente). Deve ser futura.
+ *     responses:
+ *       200:
+ *         description: Plano atualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 planId:
+ *                   type: string
+ *                   enum: [FREE, PREMIUM, PRO, ADMIN]
+ *                 planName:
+ *                   type: string
+ *                 subscriptionStatus:
+ *                   type: string
+ *                   enum: [TRIAL, ACTIVE, CONFIRMED, INACTIVE]
+ *                 planExpiresAt:
+ *                   type: string
+ *                   format: date-time
+ *                   nullable: true
+ *       400:
+ *         description: Erro de validação (planId obrigatório, data inválida ou no passado)
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 router.patch('/users/:userId/plan', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.params.userId as string;
