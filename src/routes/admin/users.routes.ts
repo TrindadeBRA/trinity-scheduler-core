@@ -70,20 +70,36 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
 
     const searchTerm = (search as string | undefined)?.trim();
 
-    // Por padrão lista leader e admin; permite filtrar por role específica
     const allowedRoles = ['leader', 'admin'];
-    const roles = roleFilter && allowedRoles.includes(roleFilter as string)
-      ? [roleFilter as string]
+    const roleParam = roleFilter as string | undefined;
+    const roles = roleParam && allowedRoles.includes(roleParam)
+      ? [roleParam]
       : allowedRoles;
 
-    const where: Record<string, unknown> = { role: { in: roles } };
+    const where: Record<string, unknown> = {};
+
+    if (roleParam === 'admin') {
+      where.OR = [
+        { role: 'admin' as const },
+        { userPlan: { is: { planId: 'ADMIN' } } },
+      ];
+    } else {
+      where.role = { in: roles };
+    }
 
     if (searchTerm) {
-      where.OR = [
+      const searchConditions = [
         { name: { contains: searchTerm, mode: 'insensitive' } },
         { email: { contains: searchTerm, mode: 'insensitive' } },
         { shop: { is: { name: { contains: searchTerm, mode: 'insensitive' } } } },
       ];
+
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchConditions }];
+        delete where.OR;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     const [leaders, total] = await prisma.$transaction([
@@ -255,16 +271,27 @@ router.patch('/users/:userId/plan', authorize('admin'), async (req: Request, res
       planExpiresAt: expiresAt,
     };
 
-    const userPlan = await prisma.userPlan.upsert({
-      where: { userId },
-      update: updateData as any,
-      create: {
-        userId,
-        planId,
-        subscriptionStatus: planId === 'FREE' ? 'TRIAL' : 'ACTIVE',
-        planExpiresAt: expiresAt,
-      } as any,
-    });
+    const isAdminPlan = planId === 'ADMIN';
+    const wasAdminPlan = user.role === 'admin';
+
+    const [userPlan] = await prisma.$transaction([
+      prisma.userPlan.upsert({
+        where: { userId },
+        update: updateData as any,
+        create: {
+          userId,
+          planId,
+          subscriptionStatus: planId === 'FREE' ? 'TRIAL' : 'ACTIVE',
+          planExpiresAt: expiresAt,
+        } as any,
+      }),
+      ...(isAdminPlan && !wasAdminPlan
+        ? [prisma.user.update({ where: { id: userId }, data: { role: 'admin' } })]
+        : []),
+      ...(!isAdminPlan && wasAdminPlan
+        ? [prisma.user.update({ where: { id: userId }, data: { role: 'leader' } })]
+        : []),
+    ]);
 
     res.json({
       planId: userPlan.planId,
