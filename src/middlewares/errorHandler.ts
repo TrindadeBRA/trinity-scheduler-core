@@ -10,10 +10,14 @@ export function errorHandler(
   next: NextFunction
 ): void {
   if (err instanceof AppError) {
-    res.status(err.statusCode).json({
+    const body: Record<string, unknown> = {
       error: err.code,
       message: err.message,
-    });
+    };
+    if (err.data) {
+      Object.assign(body, err.data);
+    }
+    res.status(err.statusCode).json(body);
     return;
   }
 

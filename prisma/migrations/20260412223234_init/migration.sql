@@ -193,6 +193,9 @@ CREATE TABLE "TimeBlock" (
     "startTime" TEXT NOT NULL,
     "duration" INTEGER NOT NULL,
     "reason" TEXT,
+    "recurrenceGroupId" TEXT,
+    "recurrenceDays" TEXT[],
+    "recurrenceEndDate" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "TimeBlock_pkey" PRIMARY KEY ("id")
@@ -221,6 +224,7 @@ CREATE TABLE "UserPlan" (
     "subscriptionStatus" "SubscriptionStatus" NOT NULL DEFAULT 'TRIAL',
     "isPackage" BOOLEAN NOT NULL DEFAULT false,
     "packageExpiresAt" TIMESTAMP(3),
+    "planExpiresAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -282,6 +286,9 @@ CREATE INDEX "TimeBlock_shopId_date_idx" ON "TimeBlock"("shopId", "date");
 
 -- CreateIndex
 CREATE INDEX "TimeBlock_professionalId_date_idx" ON "TimeBlock"("professionalId", "date");
+
+-- CreateIndex
+CREATE INDEX "TimeBlock_recurrenceGroupId_idx" ON "TimeBlock"("recurrenceGroupId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "UserPlan_userId_key" ON "UserPlan"("userId");
@@ -354,4 +361,3 @@ ALTER TABLE "UserPlan" ADD CONSTRAINT "UserPlan_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "UserPlan" ADD CONSTRAINT "UserPlan_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-

@@ -231,20 +231,24 @@ model ProfessionalUnit {
 }
 
 model TimeBlock {
-  id             String   @id @default(uuid())
-  shopId         String
-  professionalId String
-  date           String
-  startTime      String
-  duration       Int
-  reason         String?
-  createdAt      DateTime @default(now())
+  id                String   @id @default(uuid())
+  shopId            String
+  professionalId    String
+  date              String
+  startTime         String
+  duration          Int
+  reason            String?
+  recurrenceGroupId String?
+  recurrenceDays    String[]
+  recurrenceEndDate String?
+  createdAt         DateTime @default(now())
 
   shop         Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
 
   @@index([shopId, date])
   @@index([professionalId, date])
+  @@index([recurrenceGroupId])
 }
 
 enum SubscriptionStatus {
