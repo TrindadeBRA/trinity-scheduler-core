@@ -87,6 +87,7 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
       { name: 'Plans', description: 'Listagem de planos disponíveis' },
       { name: 'Admin Users - Plan', description: 'Plano do usuário autenticado' },
       { name: 'Billing', description: 'Assinaturas e checkout via Asaas' },
+      { name: 'Admin ProfessionalServices', description: 'Gestão de vínculos entre profissionais e serviços' },
     ],
     components: {
       securitySchemes: {
@@ -235,6 +236,16 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
                   id: { type: 'string', format: 'uuid' },
                   unitId: { type: 'string', format: 'uuid' },
                   unit: { $ref: '#/components/schemas/Unit' },
+                },
+              },
+            },
+            professionalServices: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  serviceId: { type: 'string', format: 'uuid' },
+                  serviceName: { type: 'string' },
                 },
               },
             },
@@ -651,6 +662,15 @@ Para usuários com role **professional**, o sistema aplica automaticamente filtr
             startTime: { type: 'string', example: '14:00' },
             duration: { type: 'integer', description: 'Duração em minutos' },
             reason: { type: 'string', nullable: true },
+            createdAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        ProfessionalService: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            professionalId: { type: 'string', format: 'uuid' },
+            serviceId: { type: 'string', format: 'uuid' },
             createdAt: { type: 'string', format: 'date-time' },
           },
         },

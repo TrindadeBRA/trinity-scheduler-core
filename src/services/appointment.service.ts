@@ -15,33 +15,41 @@ export async function createAppointment(data: {
 }) {
   const { shopId, clientId, serviceId, professionalId, addonIds = [], date, time, notes, unitId } = data;
 
-  // Busca o serviço principal
   const service = await prisma.service.findFirst({
     where: { id: serviceId, shopId },
   });
   if (!service) throw new AppError(404, 'NOT_FOUND', 'Serviço não encontrado');
 
-  // Busca adicionais
   const addons = addonIds.length > 0
     ? await prisma.service.findMany({ where: { id: { in: addonIds }, shopId, type: 'addon' } })
     : [];
 
-  // Calcula duração e preço totais (em centavos)
   const totalDuration = service.duration + addons.reduce((sum, a) => sum + a.duration, 0);
   const totalPrice = service.price + addons.reduce((sum, a) => sum + a.price, 0);
 
-  // Determina o profissional
   let resolvedProfessionalId = professionalId;
 
   if (!resolvedProfessionalId) {
-    // Auto-atribuição: encontra profissional disponível
     const slots = await getAvailableSlots(shopId, null, date, totalDuration);
     const slotAvailable = slots.find((s) => s.time === time && s.available);
     if (!slotAvailable) throw new AppError(409, 'CONFLICT', 'Horário não disponível');
 
-    // Encontra o primeiro profissional disponível nesse slot
+    const links = await prisma.professionalService.findMany({
+      where: { serviceId },
+      select: { professionalId: true },
+    });
+
+    const linkedIds = links.map((l) => l.professionalId);
+
+    const profWhere = {
+      shopId,
+      active: true,
+      deletedAt: null,
+      ...(linkedIds.length > 0 ? { id: { in: linkedIds } } : {}),
+    };
+
     const professionals = await prisma.professional.findMany({
-      where: { shopId, active: true, deletedAt: null },
+      where: profWhere,
       select: { id: true },
     });
 
@@ -58,7 +66,6 @@ export async function createAppointment(data: {
       throw new AppError(409, 'CONFLICT', 'Nenhum profissional disponível neste horário');
     }
   } else {
-    // Valida disponibilidade do profissional específico
     const slots = await getAvailableSlots(shopId, resolvedProfessionalId, date, totalDuration);
     const slotAvailable = slots.find((s) => s.time === time && s.available);
     if (!slotAvailable) throw new AppError(409, 'CONFLICT', 'Horário não disponível para este profissional');

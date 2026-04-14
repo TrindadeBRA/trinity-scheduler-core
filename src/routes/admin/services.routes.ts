@@ -92,7 +92,7 @@ router.get('/services', authorize('leader', 'professional', 'admin'), async (req
     const direction = sortOrder === 'asc' ? 'asc' : 'desc';
 
     const [data, total] = await prisma.$transaction([
-      prisma.service.findMany({ where, skip, take: perPageNum, orderBy: { [field]: direction } }),
+      prisma.service.findMany({ where, skip, take: perPageNum, orderBy: { [field]: direction }, include: { professionalServices: { include: { professional: { select: { id: true, name: true, avatar: true, email: true } } } } } }),
       prisma.service.count({ where }),
     ]);
 
@@ -137,7 +137,7 @@ router.get('/services/:id', authorize('leader', 'professional', 'admin'), async 
     const where: Record<string, unknown> = { id };
     if (shopId) where.shopId = shopId;
 
-    const service = await prisma.service.findFirst({ where });
+    const service = await prisma.service.findFirst({ where, include: { professionalServices: { include: { professional: { select: { id: true, name: true } } } } } });
     if (!service) throw new AppError(404, 'NOT_FOUND', 'Serviço não encontrado');
 
     res.json(service);
@@ -300,6 +300,53 @@ router.delete('/services/:id', authorize('leader', 'admin'), async (req: Request
 
     await prisma.service.delete({ where: { id } });
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/services/:id/professionals', authorize('leader', 'professional', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const allocations = await prisma.professionalService.findMany({
+      where: { serviceId: id },
+      include: { professional: { select: { id: true, name: true } } },
+      orderBy: { professional: { name: 'asc' } },
+    });
+    res.json(allocations);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/services/:id/professionals', authorize('leader', 'admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const { professionalIds } = req.body as { professionalIds: string[] };
+
+    if (!Array.isArray(professionalIds)) throw new AppError(400, 'VALIDATION_ERROR', 'professionalIds deve ser um array');
+
+    const shopId = req.shopId || req.user?.shopId;
+    const where: Record<string, unknown> = { id };
+    if (shopId) where.shopId = shopId;
+
+    const existing = await prisma.service.findFirst({ where });
+    if (!existing) throw new AppError(404, 'NOT_FOUND', 'Serviço não encontrado');
+
+    await prisma.$transaction([
+      prisma.professionalService.deleteMany({ where: { serviceId: id } }),
+      ...professionalIds.map(professionalId =>
+        prisma.professionalService.create({ data: { serviceId: id, professionalId } })
+      ),
+    ]);
+
+    const allocations = await prisma.professionalService.findMany({
+      where: { serviceId: id },
+      include: { professional: { select: { id: true, name: true } } },
+      orderBy: { professional: { name: 'asc' } },
+    });
+
+    res.json(allocations);
   } catch (err) {
     next(err);
   }

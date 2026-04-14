@@ -81,8 +81,9 @@ model Service {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  shop         Shop          @relation(fields: [shopId], references: [id])
-  appointments Appointment[]
+  shop                 Shop                  @relation(fields: [shopId], references: [id])
+  appointments         Appointment[]
+  professionalServices ProfessionalService[]
 
   @@index([shopId])
 }
@@ -106,13 +107,14 @@ model Professional {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  shop              Shop               @relation(fields: [shopId], references: [id])
-  unit              Unit?              @relation(fields: [unitId], references: [id])
-  workingHours      WorkingHour[]
-  appointments      Appointment[]
-  timeBlocks        TimeBlock[]
-  user              User?
-  professionalUnits ProfessionalUnit[]
+  shop                 Shop                  @relation(fields: [shopId], references: [id])
+  unit                 Unit?                 @relation(fields: [unitId], references: [id])
+  workingHours         WorkingHour[]
+  appointments         Appointment[]
+  timeBlocks           TimeBlock[]
+  user                 User?
+  professionalUnits    ProfessionalUnit[]
+  professionalServices ProfessionalService[]
 
   @@index([shopId])
 }
@@ -228,6 +230,18 @@ model ProfessionalUnit {
   unit         Unit         @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
   @@unique([professionalId, unitId])
+}
+
+model ProfessionalService {
+  id             String   @id @default(uuid())
+  professionalId String
+  serviceId      String
+  createdAt      DateTime @default(now())
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  service      Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([professionalId, serviceId])
 }
 
 model TimeBlock {

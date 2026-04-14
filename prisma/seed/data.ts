@@ -84,6 +84,15 @@ export const CLIENTS = [
   { name: 'Aline Nascimento', phone: '11977771030', email: 'aline.nascimento@email.com', notes: '' },
 ];
 
+export const SPECIALTY_SERVICE_MAP: Record<string, string[]> = {
+  'Corte':        ['Corte de Cabelo', 'Corte + Barba'],
+  'Barba':        ['Barba', 'Corte + Barba'],
+  'Coloração':    ['Corte de Cabelo'],
+  'Hidratação':   ['Corte de Cabelo'],
+  'Pigmentação':  ['Pigmentação'],
+  'Sobrancelha':  ['Barba'],
+};
+
 export const SHOP_HOURS: Record<string, { start: string | null; end: string | null }> = {
   'Segunda': { start: '09:00', end: '18:00' },
   'Terça':   { start: '09:00', end: '18:00' },

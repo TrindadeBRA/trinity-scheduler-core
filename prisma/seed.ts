@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import {
   PLANS, UNITS, PROFESSIONALS, SERVICES, CLIENTS,
-  SHOP_HOURS, ALL_DAYS_PT, WEEKDAYS_PT,
+  SHOP_HOURS, ALL_DAYS_PT, WEEKDAYS_PT, SPECIALTY_SERVICE_MAP,
 } from './seed/data';
 import { seedAppointments } from './seed/appointments';
 import { seedDev } from './seed/devSeed';
@@ -155,6 +155,29 @@ async function main() {
     }
   }
   console.log('Seed: serviços OK.');
+
+  // ─── Vínculos profissional-serviço ─────────────────────────────────────
+  const allProfessionals = await prisma.professional.findMany({ where: { shopId, deletedAt: null } });
+  const allServices = await prisma.service.findMany({ where: { shopId } });
+  const serviceByName = new Map(allServices.map(s => [s.name, s]));
+
+  for (const prof of allProfessionals) {
+    const serviceNames = new Set<string>();
+    for (const specialty of prof.specialties) {
+      const mapped = SPECIALTY_SERVICE_MAP[specialty] ?? [];
+      for (const name of mapped) serviceNames.add(name);
+    }
+    for (const name of serviceNames) {
+      const svc = serviceByName.get(name);
+      if (!svc) continue;
+      await prisma.professionalService.upsert({
+        where: { professionalId_serviceId: { professionalId: prof.id, serviceId: svc.id } },
+        update: {},
+        create: { professionalId: prof.id, serviceId: svc.id },
+      });
+    }
+  }
+  console.log('Seed: vínculos profissional-serviço OK.');
 
   // ─── Clientes ──────────────────────────────────────────────────────────
   for (const client of CLIENTS) {
