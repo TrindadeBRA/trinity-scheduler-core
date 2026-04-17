@@ -56,6 +56,11 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       throw new AppError(400, 'VALIDATION_ERROR', 'Campos clientId, serviceId, date e time são obrigatórios');
     }
 
+    const client = await prisma.client.findFirst({ where: { id: clientId, shopId }, select: { active: true } });
+    if (client && client.active === false) {
+      throw new AppError(403, 'CLIENT_INACTIVE', 'Esta conta está inativa. Entre em contato com o estabelecimento.');
+    }
+
     const appointment = await createAppointment({
       shopId,
       clientId,
