@@ -127,7 +127,7 @@ router.get('/clients', authorize('leader', 'admin', 'professional'), async (req:
  */
 router.get('/clients/:id', authorize('leader', 'admin', 'professional'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };
@@ -302,7 +302,7 @@ router.delete('/clients/:id', authorize('leader', 'admin'), async (req: Request,
 
 router.patch('/clients/:id/status', authorize('leader', 'admin', 'professional'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
     const where: Record<string, unknown> = { id };

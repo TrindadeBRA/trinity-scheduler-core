@@ -408,7 +408,7 @@ router.patch('/users/:userId/plan', authorize('admin'), async (req: Request, res
  */
 router.patch('/users/:userId/status', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId as string;
 
     if (userId === req.user?.id) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Você não pode desativar sua própria conta');
@@ -435,7 +435,7 @@ router.patch('/users/:userId/status', authorize('admin'), async (req: Request, r
  */
 router.get('/users/:userId', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId as string;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -507,7 +507,7 @@ router.get('/users/:userId', authorize('admin'), async (req: Request, res: Respo
  */
 router.put('/users/:userId', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId as string;
     const name = String(req.body.name ?? '').trim();
     const email = String(req.body.email ?? '').trim().toLowerCase();
 
@@ -540,7 +540,8 @@ router.put('/users/:userId', authorize('admin'), async (req: Request, res: Respo
  */
 router.get('/users/:userId/professionals/:profId', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { userId, profId } = req.params;
+    const userId = req.params.userId as string;
+    const profId = req.params.profId as string;
 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { shopId: true } });
     if (!user) throw new AppError(404, 'NOT_FOUND', 'Usuário não encontrado');
@@ -567,7 +568,8 @@ router.get('/users/:userId/professionals/:profId', authorize('admin'), async (re
  */
 router.put('/users/:userId/professionals/:profId', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { userId, profId } = req.params;
+    const userId = req.params.userId as string;
+    const profId = req.params.profId as string;
     const { name, phone, email, specialties, active } = req.body;
 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { shopId: true } });
