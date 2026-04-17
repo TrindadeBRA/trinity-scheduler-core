@@ -3,6 +3,7 @@ import { prisma } from '../../utils/prisma';
 import { authorize } from '../../middlewares/authorize';
 import { AppError } from '../../utils/errors';
 import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
+import { validatePriceRules } from '../../utils/priceResolver';
 
 const router = Router();
 
@@ -92,7 +93,7 @@ router.get('/services', authorize('leader', 'professional', 'admin'), async (req
     const direction = sortOrder === 'asc' ? 'asc' : 'desc';
 
     const [data, total] = await prisma.$transaction([
-      prisma.service.findMany({ where, skip, take: perPageNum, orderBy: { [field]: direction }, include: { professionalServices: { include: { professional: { select: { id: true, name: true, avatar: true, email: true } } } } } }),
+      prisma.service.findMany({ where, skip, take: perPageNum, orderBy: { [field]: direction }, include: { priceRules: true, professionalServices: { include: { professional: { select: { id: true, name: true, avatar: true, email: true } } } } } }),
       prisma.service.count({ where }),
     ]);
 
@@ -137,7 +138,7 @@ router.get('/services/:id', authorize('leader', 'professional', 'admin'), async 
     const where: Record<string, unknown> = { id, deletedAt: null };
     if (shopId) where.shopId = shopId;
 
-    const service = await prisma.service.findFirst({ where, include: { professionalServices: { include: { professional: { select: { id: true, name: true } } } } } });
+    const service = await prisma.service.findFirst({ where, include: { priceRules: true, professionalServices: { include: { professional: { select: { id: true, name: true } } } } } });
     if (!service) throw new AppError(404, 'NOT_FOUND', 'Serviço não encontrado');
 
     res.json(service);
@@ -178,14 +179,31 @@ router.post('/services', authorize('leader', 'admin'), async (req: Request, res:
     const shopId = req.shopId || req.user?.shopId;
     if (!shopId) throw new AppError(400, 'VALIDATION_ERROR', 'shopId não encontrado');
 
-    const { name, duration, price, description, icon, image, type, active } = req.body;
+    const { name, duration, price, description, icon, image, type, active, priceRules } = req.body;
 
     if (!name || duration === undefined || price === undefined || !type) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Campos name, duration, price e type são obrigatórios');
     }
 
-    const service = await prisma.service.create({
-      data: { shopId, name, duration, price, description, icon, image, type, active: active ?? true },
+    if (priceRules !== undefined) {
+      const { valid, errors } = validatePriceRules(priceRules);
+      if (!valid) throw new AppError(400, 'VALIDATION_ERROR', errors.join('; '));
+    }
+
+    const service = await prisma.$transaction(async (tx) => {
+      const created = await tx.service.create({
+        data: { shopId, name, duration, price, description, icon, image, type, active: active ?? true },
+      });
+      if (priceRules && priceRules.length > 0) {
+        await tx.servicePriceRule.createMany({
+          data: priceRules.map((r: { dayOfWeek: number[]; price: number }) => ({
+            serviceId: created.id,
+            dayOfWeek: r.dayOfWeek,
+            price: r.price,
+          })),
+        });
+      }
+      return tx.service.findFirst({ where: { id: created.id }, include: { priceRules: true } });
     });
 
     res.status(201).json(service);
@@ -240,20 +258,40 @@ router.put('/services/:id', authorize('leader', 'admin'), async (req: Request, r
     const existing = await prisma.service.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Serviço não encontrado');
 
-    const { name, duration, price, description, icon, image, type, active } = req.body;
+    const { name, duration, price, description, icon, image, type, active, priceRules } = req.body;
 
-    const service = await prisma.service.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(duration !== undefined && { duration }),
-        ...(price !== undefined && { price }),
-        ...(description !== undefined && { description }),
-        ...(icon !== undefined && { icon }),
-        ...(image !== undefined && { image }),
-        ...(type !== undefined && { type }),
-        ...(active !== undefined && { active }),
-      },
+    if (priceRules !== undefined) {
+      const { valid, errors } = validatePriceRules(priceRules);
+      if (!valid) throw new AppError(400, 'VALIDATION_ERROR', errors.join('; '));
+    }
+
+    const service = await prisma.$transaction(async (tx) => {
+      const updated = await tx.service.update({
+        where: { id },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(duration !== undefined && { duration }),
+          ...(price !== undefined && { price }),
+          ...(description !== undefined && { description }),
+          ...(icon !== undefined && { icon }),
+          ...(image !== undefined && { image }),
+          ...(type !== undefined && { type }),
+          ...(active !== undefined && { active }),
+        },
+      });
+      if (priceRules !== undefined) {
+        await tx.servicePriceRule.deleteMany({ where: { serviceId: id } });
+        if (priceRules.length > 0) {
+          await tx.servicePriceRule.createMany({
+            data: priceRules.map((r: { dayOfWeek: number[]; price: number }) => ({
+              serviceId: id,
+              dayOfWeek: r.dayOfWeek,
+              price: r.price,
+            })),
+          });
+        }
+      }
+      return tx.service.findFirst({ where: { id }, include: { priceRules: true } });
     });
 
     res.json(service);

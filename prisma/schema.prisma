@@ -86,8 +86,20 @@ model Service {
   shop                 Shop                  @relation(fields: [shopId], references: [id])
   appointments         Appointment[]
   professionalServices ProfessionalService[]
+  priceRules           ServicePriceRule[]
 
   @@index([shopId])
+}
+
+model ServicePriceRule {
+  id        String @id @default(uuid())
+  serviceId String
+  dayOfWeek Int[]  // array de inteiros 0-6 (dom-sáb)
+  price     Int    // centavos, > 0
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
 }
 
 enum ServiceType {

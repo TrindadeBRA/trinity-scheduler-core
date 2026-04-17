@@ -1,6 +1,7 @@
 import { prisma } from '../utils/prisma';
 import { AppError } from '../utils/errors';
 import { getAvailableSlots } from './availability.service';
+import { resolvePriceForDate } from '../utils/priceResolver';
 
 export async function createAppointment(data: {
   shopId: string;
@@ -17,15 +18,22 @@ export async function createAppointment(data: {
 
   const service = await prisma.service.findFirst({
     where: { id: serviceId, shopId },
+    include: { priceRules: true },
   });
   if (!service) throw new AppError(404, 'NOT_FOUND', 'Serviço não encontrado');
 
   const addons = addonIds.length > 0
-    ? await prisma.service.findMany({ where: { id: { in: addonIds }, shopId, type: 'addon' } })
+    ? await prisma.service.findMany({
+        where: { id: { in: addonIds }, shopId, type: 'addon' },
+        include: { priceRules: true },
+      })
     : [];
 
+  const resolvedServicePrice = resolvePriceForDate(service.price, service.priceRules, date);
+  const resolvedAddonPrices = addons.map((a) => resolvePriceForDate(a.price, a.priceRules, date));
+
   const totalDuration = service.duration + addons.reduce((sum, a) => sum + a.duration, 0);
-  const totalPrice = service.price + addons.reduce((sum, a) => sum + a.price, 0);
+  const totalPrice = resolvedServicePrice + resolvedAddonPrices.reduce((sum, p) => sum + p, 0);
 
   let resolvedProfessionalId = professionalId;
 
@@ -85,11 +93,11 @@ export async function createAppointment(data: {
       notes: notes || null,
       unitId: unitId || null,
       addons: addons.length > 0 ? {
-        create: addons.map((a) => ({
+        create: addons.map((a, i) => ({
           serviceId: a.id,
           name: a.name,
           duration: a.duration,
-          price: a.price,
+          price: resolvedAddonPrices[i],
         })),
       } : undefined,
     },

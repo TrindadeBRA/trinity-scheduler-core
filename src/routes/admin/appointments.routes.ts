@@ -5,6 +5,7 @@ import { createAppointment, cancelAppointment } from '../../services/appointment
 import { AppError } from '../../utils/errors';
 import { parsePagination, createPaginatedResponse } from '../../utils/pagination';
 import { getAvailableSlots } from '../../services/availability.service';
+import { resolvePriceForDate } from '../../utils/priceResolver';
 
 const router = Router();
 
@@ -420,7 +421,10 @@ router.put('/appointments/:id', authorize('leader', 'professional', 'admin'), as
 
     const existing = await prisma.appointment.findFirst({
       where,
-      include: { addons: { select: { price: true } } },
+      include: {
+        addons: { select: { price: true, serviceId: true } },
+        service: { include: { priceRules: true } },
+      },
     });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Agendamento não encontrado');
 
@@ -435,12 +439,37 @@ router.put('/appointments/:id', authorize('leader', 'professional', 'admin'), as
       }
     }
 
+    // Recalculate price when date changes (dynamic pricing)
+    let newPrice: number | undefined;
+    const effectiveDate = date ?? existing.date;
+    if (date && date !== existing.date) {
+      const resolvedServicePrice = resolvePriceForDate(
+        existing.service.price,
+        existing.service.priceRules,
+        effectiveDate,
+      );
+
+      // Resolve each addon price for the new date
+      let resolvedAddonsTotal = 0;
+      if (existing.addons.length > 0) {
+        const addonServices = await prisma.service.findMany({
+          where: { id: { in: existing.addons.map((a) => a.serviceId) } },
+          include: { priceRules: true },
+        });
+        resolvedAddonsTotal = addonServices.reduce((sum, svc) => {
+          return sum + resolvePriceForDate(svc.price, svc.priceRules, effectiveDate);
+        }, 0);
+      }
+
+      newPrice = resolvedServicePrice + resolvedAddonsTotal;
+    }
+
     // Detecta transições de status que afetam totalSpent
     const becomingCompleted = status === 'completed' && existing.status !== 'completed';
     const leavingCompleted = status !== undefined && status !== 'completed' && existing.status === 'completed';
 
     const addonTotal = existing.addons.reduce((sum, a) => sum + a.price, 0);
-    const totalPrice = existing.price + addonTotal;
+    const totalPrice = newPrice ?? (existing.price + addonTotal);
 
     const operations: any[] = [
       prisma.appointment.update({
@@ -452,6 +481,7 @@ router.put('/appointments/:id', authorize('leader', 'professional', 'admin'), as
           ...(date !== undefined && { date }),
           ...(time !== undefined && { time }),
           ...(professionalId !== undefined && { professionalId }),
+          ...(newPrice !== undefined && { price: newPrice }),
         },
         include: {
           service: { select: { name: true } },
