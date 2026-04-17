@@ -89,7 +89,7 @@ const router = Router();
  */
 router.get('/users', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { search, page, pageSize, role: roleFilter } = req.query;
+    const { search, page, pageSize, role: roleFilter, active: activeFilter } = req.query;
     const { skip, take, page: pageNum, pageSize: pageSizeNum } = parsePagination({
       page: page as string,
       pageSize: pageSize as string,
@@ -104,6 +104,9 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
       : allowedRoles;
 
     const where: Record<string, unknown> = {};
+    if (activeFilter === 'true') where.active = true;
+    else if (activeFilter === 'false') where.active = false;
+    // 'all' ou omitido = sem filtro
 
     if (roleParam === 'admin') {
       where.OR = [
@@ -140,6 +143,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
           name: true,
           email: true,
           role: true,
+          active: true,
           shopId: true,
           referralId: true,
           createdAt: true,
@@ -228,6 +232,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
         name: user.name,
         email: user.email,
         role: user.role,
+        active: user.active,
         shopName: user.shop.name,
         professionals,
         professionalsTotal: professionals.length,
@@ -398,6 +403,33 @@ router.patch('/users/:userId/plan', authorize('admin'), async (req: Request, res
 });
 
 /**
+ * PATCH /admin/users/:userId/status
+ * Ativa ou desativa a conta de um usuário (apenas admin)
+ */
+router.patch('/users/:userId/status', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId } = req.params;
+
+    if (userId === req.user?.id) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Você não pode desativar sua própria conta');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, active: true, role: true } });
+    if (!user) throw new AppError(404, 'NOT_FOUND', 'Usuário não encontrado');
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { active: !user.active },
+      select: { id: true, active: true },
+    });
+
+    res.json({ id: updated.id, active: updated.active });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * GET /admin/users/:userId
  * Retorna detalhes completos de um usuário (apenas admin)
  */
@@ -412,6 +444,7 @@ router.get('/users/:userId', authorize('admin'), async (req: Request, res: Respo
         name: true,
         email: true,
         role: true,
+        active: true,
         shopId: true,
         referralId: true,
         createdAt: true,
@@ -445,6 +478,7 @@ router.get('/users/:userId', authorize('admin'), async (req: Request, res: Respo
       name: user.name,
       email: user.email,
       role: user.role,
+      active: user.active,
       shopId: user.shopId,
       shopName: user.shop.name,
       createdAt: user.createdAt,

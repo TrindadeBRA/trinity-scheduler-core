@@ -300,4 +300,27 @@ router.delete('/clients/:id', authorize('leader', 'admin'), async (req: Request,
   }
 });
 
+router.patch('/clients/:id/status', authorize('leader', 'admin', 'professional'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const shopId = req.shopId || req.user?.shopId;
+
+    const where: Record<string, unknown> = { id };
+    if (shopId) where.shopId = shopId;
+
+    const client = await prisma.client.findFirst({ where, select: { id: true, active: true } });
+    if (!client) throw new AppError(404, 'NOT_FOUND', 'Cliente não encontrado');
+
+    const updated = await prisma.client.update({
+      where: { id },
+      data: { active: !client.active },
+      select: { id: true, active: true },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

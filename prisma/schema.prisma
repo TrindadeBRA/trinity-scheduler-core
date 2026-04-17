@@ -36,6 +36,7 @@ model User {
   email          String    @unique
   passwordHash   String
   role           Role      @default(leader)
+  active         Boolean   @default(true)
   professionalId String?   @unique
   referralId     String?
   resetToken     String?
@@ -142,6 +143,7 @@ model Client {
   email      String?
   notes      String?
   birthday   String?
+  active     Boolean   @default(true)
   totalSpent Int       @default(0)
   lastVisit  DateTime?
   createdAt  DateTime  @default(now())
