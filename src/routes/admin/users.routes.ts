@@ -233,7 +233,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
         email: user.email,
         role: user.role,
         active: user.active,
-        shopName: user.shop.name,
+        shopName: (user.shop as any).name,
         professionals,
         professionalsTotal: professionals.length,
         // new fields
@@ -242,7 +242,7 @@ router.get('/users', authorize('admin'), async (req: Request, res: Response, nex
         hasPaidPlan: computeHasPaidPlan(userPlan),
         plan: {
           planId: userPlan?.planId ?? 'FREE',
-          planName: userPlan?.plan?.name ?? 'Free',
+          planName: (userPlan as any)?.plan?.name ?? 'Free',
           subscriptionStatus: userPlan?.subscriptionStatus ?? 'TRIAL',
           subscriptionId: userPlan?.subscriptionId ?? null,
           planExpiresAt: (userPlan as any)?.planExpiresAt ?? null,
@@ -480,13 +480,13 @@ router.get('/users/:userId', authorize('admin'), async (req: Request, res: Respo
       role: user.role,
       active: user.active,
       shopId: user.shopId,
-      shopName: user.shop.name,
+      shopName: (user as any).shop.name,
       createdAt: user.createdAt,
       trialDaysRemaining: computeTrialDaysRemaining(user.createdAt, subscriptionStatus),
       hasPaidPlan: computeHasPaidPlan(userPlan),
       plan: {
         planId: userPlan?.planId ?? 'FREE',
-        planName: userPlan?.plan?.name ?? 'Free',
+        planName: (userPlan as any)?.plan?.name ?? 'Free',
         subscriptionStatus: userPlan?.subscriptionStatus ?? 'TRIAL',
         subscriptionId: userPlan?.subscriptionId ?? null,
         planExpiresAt: (userPlan as any)?.planExpiresAt ?? null,
