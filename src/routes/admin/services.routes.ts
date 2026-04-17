@@ -192,7 +192,7 @@ router.post('/services', authorize('leader', 'admin'), async (req: Request, res:
 
     const service = await prisma.$transaction(async (tx) => {
       const created = await tx.service.create({
-        data: { shopId, name, duration, price, description, icon, image, type, active: active ?? true },
+        data: { shopId, name, duration: type === 'addon' ? 0 : duration, price, description, icon, image, type, active: active ?? true },
       });
       if (priceRules && priceRules.length > 0) {
         await tx.servicePriceRule.createMany({
@@ -270,7 +270,7 @@ router.put('/services/:id', authorize('leader', 'admin'), async (req: Request, r
         where: { id },
         data: {
           ...(name !== undefined && { name }),
-          ...(duration !== undefined && { duration }),
+          ...(duration !== undefined && { duration: (type ?? existing.type) === 'addon' ? 0 : duration }),
           ...(price !== undefined && { price }),
           ...(description !== undefined && { description }),
           ...(icon !== undefined && { icon }),
