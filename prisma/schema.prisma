@@ -78,6 +78,7 @@ model Service {
   image       String?
   type        ServiceType @default(service)
   active      Boolean     @default(true)
+  deletedAt   DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

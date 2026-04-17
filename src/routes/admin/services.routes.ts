@@ -76,7 +76,7 @@ router.get('/services', authorize('leader', 'professional', 'admin'), async (req
     const perPageNum = parseInt(pageSize as string, 10);
     const skip = (pageNum - 1) * perPageNum;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { deletedAt: null };
     if (shopId) where.shopId = shopId;
 
     if (search) {
@@ -134,7 +134,7 @@ router.get('/services/:id', authorize('leader', 'professional', 'admin'), async 
     const { id } = req.params;
     const shopId = req.shopId || req.user?.shopId;
 
-    const where: Record<string, unknown> = { id };
+    const where: Record<string, unknown> = { id, deletedAt: null };
     if (shopId) where.shopId = shopId;
 
     const service = await prisma.service.findFirst({ where, include: { professionalServices: { include: { professional: { select: { id: true, name: true } } } } } });
@@ -234,7 +234,7 @@ router.put('/services/:id', authorize('leader', 'admin'), async (req: Request, r
     const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
-    const where: Record<string, unknown> = { id };
+    const where: Record<string, unknown> = { id, deletedAt: null };
     if (shopId) where.shopId = shopId;
 
     const existing = await prisma.service.findFirst({ where });
@@ -292,13 +292,36 @@ router.delete('/services/:id', authorize('leader', 'admin'), async (req: Request
     const id = req.params.id as string;
     const shopId = req.shopId || req.user?.shopId;
 
-    const where: Record<string, unknown> = { id };
+    const where: Record<string, unknown> = { id, deletedAt: null };
     if (shopId) where.shopId = shopId;
 
     const existing = await prisma.service.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Serviço não encontrado');
 
-    await prisma.service.delete({ where: { id } });
+    // Verifica se há agendamentos futuros vinculados
+    const today = new Date().toISOString().split('T')[0];
+    const futureAppointments = await prisma.appointment.count({
+      where: {
+        serviceId: id,
+        date: { gte: today },
+        status: { in: ['confirmed'] },
+      },
+    });
+
+    if (futureAppointments > 0) {
+      throw new AppError(
+        409,
+        'HAS_FUTURE_APPOINTMENTS',
+        `Não é possível excluir este serviço pois há ${futureAppointments} agendamento(s) futuro(s) vinculado(s). Cancele-os antes de excluir.`
+      );
+    }
+
+    // Soft delete
+    await prisma.service.update({
+      where: { id },
+      data: { deletedAt: new Date(), active: false },
+    });
+
     res.status(204).send();
   } catch (err) {
     next(err);

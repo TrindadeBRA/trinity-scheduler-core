@@ -564,6 +564,24 @@ router.delete('/professionals/:id', authorize('leader', 'admin'), async (req: Re
     const existing = await prisma.professional.findFirst({ where });
     if (!existing) throw new AppError(404, 'NOT_FOUND', 'Profissional não encontrado');
 
+    // Verifica se há agendamentos futuros vinculados
+    const today = new Date().toISOString().split('T')[0];
+    const futureAppointments = await prisma.appointment.count({
+      where: {
+        professionalId: id,
+        date: { gte: today },
+        status: { in: ['confirmed'] },
+      },
+    });
+
+    if (futureAppointments > 0) {
+      throw new AppError(
+        409,
+        'HAS_FUTURE_APPOINTMENTS',
+        `Não é possível excluir este profissional pois há ${futureAppointments} agendamento(s) futuro(s) vinculado(s). Cancele-os antes de excluir.`
+      );
+    }
+
     // Soft delete: marca deletedAt ao invés de remover do banco
     await prisma.professional.update({
       where: { id },
