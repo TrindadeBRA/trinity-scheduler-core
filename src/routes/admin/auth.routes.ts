@@ -241,6 +241,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
           email: owner.email,
           passwordHash,
           role: 'leader',
+          active: true,
           professionalId: newProfessional.id,
           ...(referralId && { referralId }),
         },
