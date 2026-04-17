@@ -397,4 +397,175 @@ router.patch('/users/:userId/plan', authorize('admin'), async (req: Request, res
   }
 });
 
+/**
+ * GET /admin/users/:userId
+ * Retorna detalhes completos de um usuário (apenas admin)
+ */
+router.get('/users/:userId', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        shopId: true,
+        referralId: true,
+        createdAt: true,
+        shop: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!user) throw new AppError(404, 'NOT_FOUND', 'Usuário não encontrado');
+
+    const [userPlan, appointmentsCount, unitsCount, professionals, referral] = await Promise.all([
+      prisma.userPlan.findUnique({
+        where: { userId },
+        include: { plan: { select: { id: true, name: true } } },
+      }),
+      prisma.appointment.count({ where: { shopId: user.shopId } }),
+      prisma.unit.count({ where: { shopId: user.shopId } }),
+      prisma.professional.findMany({
+        where: { shopId: user.shopId, deletedAt: null },
+        select: { id: true, name: true, email: true, phone: true, active: true, avatar: true, specialties: true },
+        orderBy: { name: 'asc' },
+      }),
+      user.referralId
+        ? prisma.referral.findUnique({ where: { id: user.referralId }, select: { id: true, code: true, name: true } })
+        : Promise.resolve(null),
+    ]);
+
+    const subscriptionStatus = userPlan?.subscriptionStatus ?? null;
+
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      shopId: user.shopId,
+      shopName: user.shop.name,
+      createdAt: user.createdAt,
+      trialDaysRemaining: computeTrialDaysRemaining(user.createdAt, subscriptionStatus),
+      hasPaidPlan: computeHasPaidPlan(userPlan),
+      plan: {
+        planId: userPlan?.planId ?? 'FREE',
+        planName: userPlan?.plan?.name ?? 'Free',
+        subscriptionStatus: userPlan?.subscriptionStatus ?? 'TRIAL',
+        subscriptionId: userPlan?.subscriptionId ?? null,
+        planExpiresAt: (userPlan as any)?.planExpiresAt ?? null,
+      },
+      appointmentsCount,
+      unitsCount,
+      professionals,
+      referral,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * PUT /admin/users/:userId
+ * Atualiza nome e e-mail de um usuário (apenas admin)
+ */
+router.put('/users/:userId', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId } = req.params;
+    const name = String(req.body.name ?? '').trim();
+    const email = String(req.body.email ?? '').trim().toLowerCase();
+
+    if (!name) throw new AppError(400, 'VALIDATION_ERROR', 'Nome é obrigatório');
+    if (!email) throw new AppError(400, 'VALIDATION_ERROR', 'E-mail é obrigatório');
+
+    const existing = await prisma.user.findUnique({ where: { id: userId } });
+    if (!existing) throw new AppError(404, 'NOT_FOUND', 'Usuário não encontrado');
+
+    if (email !== existing.email) {
+      const conflict = await prisma.user.findUnique({ where: { email } });
+      if (conflict) throw new AppError(409, 'CONFLICT', 'E-mail já está em uso por outro usuário');
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { name, email },
+      select: { id: true, name: true, email: true, role: true, updatedAt: true },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /admin/users/:userId/professionals/:profId
+ * Retorna detalhes de um profissional de qualquer shop (apenas admin)
+ */
+router.get('/users/:userId/professionals/:profId', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId, profId } = req.params;
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { shopId: true } });
+    if (!user) throw new AppError(404, 'NOT_FOUND', 'Usuário não encontrado');
+
+    const professional = await prisma.professional.findFirst({
+      where: { id: profId, shopId: user.shopId, deletedAt: null },
+      include: {
+        professionalUnits: { include: { unit: { select: { id: true, name: true } } } },
+        professionalServices: { include: { service: { select: { id: true, name: true } } } },
+      },
+    });
+
+    if (!professional) throw new AppError(404, 'NOT_FOUND', 'Profissional não encontrado');
+
+    res.json(professional);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * PUT /admin/users/:userId/professionals/:profId
+ * Atualiza dados de um profissional de qualquer shop (apenas admin)
+ */
+router.put('/users/:userId/professionals/:profId', authorize('admin'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId, profId } = req.params;
+    const { name, phone, email, specialties, active } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { shopId: true } });
+    if (!user) throw new AppError(404, 'NOT_FOUND', 'Usuário não encontrado');
+
+    const existing = await prisma.professional.findFirst({
+      where: { id: profId, shopId: user.shopId, deletedAt: null },
+    });
+    if (!existing) throw new AppError(404, 'NOT_FOUND', 'Profissional não encontrado');
+
+    const nameClean = String(name ?? '').trim();
+    if (!nameClean) throw new AppError(400, 'VALIDATION_ERROR', 'Nome é obrigatório');
+
+    const updated = await prisma.professional.update({
+      where: { id: profId },
+      data: {
+        name: nameClean,
+        phone: phone ? String(phone).trim() : null,
+        email: email ? String(email).trim().toLowerCase() : null,
+        specialties: Array.isArray(specialties) ? specialties : existing.specialties,
+        active: typeof active === 'boolean' ? active : existing.active,
+      },
+      include: {
+        professionalUnits: { include: { unit: { select: { id: true, name: true } } } },
+        professionalServices: { include: { service: { select: { id: true, name: true } } } },
+      },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
